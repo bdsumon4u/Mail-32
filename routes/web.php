@@ -1,5 +1,12 @@
 <?php
 
+use App\Http\Controllers\EmailAccountConnectionTestController;
+use App\Http\Controllers\EmailAccountController;
+use App\Http\Controllers\MailController;
+use App\Http\Controllers\OAuthController;
+use App\Mail\BestMail;
+use App\Mail\TestMail;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -25,4 +32,23 @@ Route::middleware('splade')->group(function () {
     });
 
     require __DIR__.'/auth.php';
+
+    Route::post('test-connection', EmailAccountConnectionTestController::class)->name('connection.test');
+
+    Route::get('/mail/accounts', MailController::class)->name('mail');
+    Route::get('/mail/accounts/create', [MailController::class, 'create'])->name('mail.create');
+    Route::post('/mail/accounts/create', [MailController::class, 'store'])->name('mail.store');
+    Route::get('/mail/accounts/{emailAccount}/edit', [MailController::class, 'edit'])->name('mail.edit');
+    Route::get('/mail/accounts/{type}/{provider}/connect', [MailController::class, 'connect'])->name('mail.connect');
+    Route::resource('email-accounts', EmailAccountController::class);
+
+    Route::get('/{providerName}/connect', [OAuthController::class, 'connect'])->where('providerName', 'microsoft|google');
+    Route::get('/{providerName}/callback', [OAuthController::class, 'callback'])->where('providerName', 'microsoft|google');
+
+    Route::get('/test', function () {
+        Mail::send(new TestMail);
+    });
+    Route::get('/best', function () {
+        Mail::send(new BestMail);
+    });
 });

@@ -1,0 +1,88 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\ConnectionType;
+use App\Innoclapps\MailClient\FolderIdentifier;
+use App\Support\EmailAccountFolderCollection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+
+class EmailAccountFolder extends Model
+{
+    use HasFactory;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'parent_id', 'name', 'display_name', 'remote_id', 'email_account_id', 'syncable', 'selectable', 'type', 'support_move',
+    ];
+
+    /**
+     * The attributes that should be cast to native types.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'selectable' => 'boolean',
+        'syncable' => 'boolean',
+        'support_move' => 'boolean',
+        'parent_id' => 'int',
+        'email_account_id' => 'int',
+    ];
+
+    /**
+     * A folder belongs to email account
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<EmailAccount, EmailAccountFolder>
+     */
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(EmailAccount::class, 'email_account_id');
+    }
+
+    /**
+     * A folder belongs to email account
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany<EmailAccountMessage>
+     */
+    public function messages(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            EmailAccountMessage::class,
+            'email_account_message_folders',
+            'folder_id',
+            'message_id'
+        );
+    }
+
+    /**
+     * Get the folder identifier
+     *
+     * @return \App\Innoclapps\MailClient\FolderIdentifier
+     */
+    public function identifier(): FolderIdentifier
+    {
+        if ($this->account->connection_type === ConnectionType::Imap) {
+            return new FolderIdentifier('name', $this->name);
+        }
+
+        return new FolderIdentifier('id', $this->remote_id);
+    }
+
+    /**
+     * Create a new Eloquent Collection instance.
+     *
+     * @param  array  $models
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function newCollection(array $models = [])
+    {
+        return (new EmailAccountFolderCollection($models))->sortByType();
+    }
+}

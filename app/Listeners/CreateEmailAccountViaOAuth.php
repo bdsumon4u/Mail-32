@@ -1,0 +1,238 @@
+<?php
+/**
+ * Concord CRM - https://www.concordcrm.com
+ *
+ * @version   1.0.7
+ *
+ * @link      Releases - https://www.concordcrm.com/releases
+ * @link      Terms Of Service - https://www.concordcrm.com/terms
+ *
+ * @copyright Copyright (c) 2022-2022 KONKORD DIGITAL
+ */
+
+namespace App\Listeners;
+
+use App\Enums\ConnectionType;
+use App\Enums\EmailAccountType;
+use App\Innoclapps\Facades\OAuthState;
+use App\Innoclapps\MailClient\ClientManager;
+use App\Innoclapps\MailClient\FolderCollection;
+use App\Models\EmailAccount;
+use App\Models\EmailAccountFolder;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Session;
+
+class CreateEmailAccountViaOAuth
+{
+    /**
+     * Initialize new CreateEmailAccountViaOAuth instance.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     */
+    public function __construct(protected Request $request)
+    {
+    }
+
+    /**
+     * Handle Microsoft email account connection finished
+     *
+     * @param  object  $event
+     * @return void
+     */
+    public function handle($event)
+    {
+        tap($event->account, function ($oAuthAccount) {
+            $account = EmailAccount::query()->where('email', $oAuthAccount->email)->first();
+
+            // Connection not intended for email account
+            // Connection can be invoke via /oauth/accounts route or calendar because of re-authentication
+            $emailAccountBeingConnected = ! is_null(OAuthState::getParameter('email_account_type'));
+
+            if (! $emailAccountBeingConnected) {
+                // We will check if this OAuth account actually exists and if yes,
+                // we will make sure that the account is usable and it does not require authentication in database
+                // as well that sync is enabled in case stopped previously e.q. because of refresh token
+                // in this case, the user won't need to re-authenticate via the email accounts index area again
+                if ($account) {
+                    $account->forceFill(['o_auth_account_id' => $oAuthAccount->id])->save(); // HOTASH # Custom
+
+                    $this->makeSureAccountIsUsable($account);
+                }
+
+                return;
+            }
+
+            if (! $account) {
+                $account = $this->createEmailAccount($oAuthAccount);
+            } elseif ((string) OAuthState::getParameter('re_auth') !== '1') {
+                Session::flash('warning', __('mail.account.already_connected'));
+            }
+
+            $account->forceFill(['o_auth_account_id' => $oAuthAccount->id])->save(); // HOTASH # Custom
+            $this->makeSureAccountIsUsable($account);
+
+            // Update the access_token_id because it's not set in the createEmailAccount method
+            $account->update(['access_token_id' => $oAuthAccount->id]);
+        });
+    }
+
+    /**
+     * Make sure that the account is usable
+     * Sets requires autentication to false as well enabled sync again if is stopped by system
+     *
+     * @param  \App\Models\EmailAccount  $account
+     * @return void
+     */
+    protected function makeSureAccountIsUsable($account)
+    {
+        $account->oAuthAccount->setRequiresAuthentication(false);
+
+        // If the sync is stopped, probably it's because of empty refresh token or
+        // failed authenticated for some reason, when reconnected, enable sync again
+        if ($account->isSyncStoppedBySystem()) {
+            $account->enableSync($account->id);
+        }
+    }
+
+    /**
+     * Create the email account
+     *
+     * @param  \App\Innoclapps\Models\OAuthAccount  $oAuthAccount
+     * @return \App\Models\EmailAccount
+     */
+    protected function createEmailAccount($oAuthAccount)
+    {
+        $payload = [
+            'connection_type' => $oAuthAccount->type == 'microsoft' ?
+                ConnectionType::Outlook :
+                ConnectionType::Gmail,
+            'email' => $oAuthAccount->email,
+        ];
+
+        $remoteFolders = ClientManager::createClient(
+            $payload['connection_type'],
+            $oAuthAccount->tokenProvider()
+        )->getImap()->getFolders();
+
+        $payload['folders'] = $remoteFolders->toArray();
+        $payload['initial_sync_from'] = OAuthState::getParameter('period');
+
+        // if ($this->isPersonal()) { // HOTASH #
+        //     $payload['user_id'] = $this->request->user()->id;
+        // }
+
+        $account = EmailAccount::create($payload);
+
+        // if (! isset($payload['user_id'])) { // HOTASH #
+        //     $fromName = ($payload['from_name_header'] ?? '') ?: EmailAccount::DEFAULT_FROM_NAME_HEADER;
+        //     $account->setMeta('from_name_header', $fromName);
+        // }
+
+        foreach ($payload['folders'] ?? [] as $folder) {
+            $this->persistForAccount($account, $folder);
+        }
+
+        foreach (['trash', 'sent'] as $folderType) {
+            if ($folder = $account->folders->firstWhere('type', $folderType)) {
+                tap($account, function ($instance) use ($folder, $folderType) {
+                    $instance->{$folderType.'Folder'}()->associate($folder);
+                })->save();
+            }
+        }
+
+        return $account;
+    }
+
+    /**
+     * Update folder for a given account
+     *
+     * @param  \App\Models\EmailAccount  $account
+     * @param  array  $folder
+     * @return \App\Models\EmailAccountFolder
+     */
+    public function persistForAccount(EmailAccount $account, array $folder)
+    {
+        $parent = EmailAccountFolder::updateOrCreate(
+            $this->getUpdateOrCreateAttributes($account, $folder),
+            array_merge($folder, [
+                'email_account_id' => $account->id,
+                'syncable' => $folder['syncable'] ?? false,
+            ])
+        );
+
+        $this->handleChildFolders($parent, $folder, $account);
+
+        return $parent;
+    }
+
+    /**
+     * Handle the child folders creation process
+     *
+     * @param  \App\Models\EmailAccountFolder  $parentFolder
+     * @param  array  $folder
+     * @param  \App\Models\EmailAccount  $account
+     * @return void
+     */
+    protected function handleChildFolders($parentFolder, $folder, $account)
+    {
+        // Avoid errors if the children key is not set
+        if (! isset($folder['children'])) {
+            return;
+        }
+
+        if ($folder['children'] instanceof FolderCollection) {
+            /**
+             * @see \App\Listeners\CreateEmailAccountViaOAuth
+             */
+            $folder['children'] = $folder['children']->toArray();
+        }
+
+        foreach ($folder['children'] as $child) {
+            $parent = $this->persistForAccount($account, array_merge($child, [
+                'parent_id' => $parentFolder->id,
+            ]));
+
+            $this->handleChildFolders($parent, $child, $account);
+        }
+    }
+
+    /**
+     * Get the attributes that should be used for update or create method
+     *
+     * @param  \App\Models\EmailAccount  $account
+     * @param  array  $folder
+     * @return array
+     */
+    protected function getUpdateOrCreateAttributes($account, $folder)
+    {
+        $attributes = ['email_account_id' => $account->id];
+
+        // If the folder database ID is passed
+        // use the ID as unique identifier for the folder
+        if (isset($folder['id'])) {
+            $attributes['id'] = $folder['id'];
+        } else {
+            // For imap account, we use the name as unique identifier
+            // as the remote_id may not always be unique
+            if ($account->connection_type === ConnectionType::Imap) {
+                $attributes['name'] = $folder['name'];
+            } else {
+                // For API based accounts e.q. Gmail and Outlook
+                // we use the remote_id as unique identifier
+                $attributes['remote_id'] = $folder['remote_id'];
+            }
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * Check whether the account is personal
+     *
+     * @return bool
+     */
+    protected function isPersonal(): bool
+    {
+        return EmailAccountType::tryFrom(OAuthState::getParameter('email_account_type')) === EmailAccountType::PERSONAL;
+    }
+}

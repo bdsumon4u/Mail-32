@@ -2,23 +2,35 @@
     "name": "laravel/laravel",
     "type": "project",
     "description": "The Laravel Framework.",
-    "keywords": ["framework", "laravel"],
+    "keywords": [
+        "framework",
+        "laravel"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.0.2",
+        "ddeboer/imap": "^1.14",
+        "google/apiclient": "^2.12",
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^9.19",
         "laravel/sanctum": "^3.0",
         "laravel/tinker": "^2.7",
-        "protonemedia/laravel-splade-breeze": "^1.1"
+        "league/oauth2-client": "^2.6",
+        "league/oauth2-google": "^4.0",
+        "microsoft/microsoft-graph": "^1.76",
+        "plank/laravel-metable": "^5.2",
+        "protonemedia/laravel-splade-breeze": "^1.1",
+        "spatie/once": "^3.1",
+        "zbateson/mail-mime-parser": "^2.2"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
         "laravel/dusk": "^7.0",
-        "laravel/pint": "^1.0",
+        "laravel/pint": "^1.2",
         "laravel/sail": "^1.0.1",
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^6.1",
+        "nunomaduro/larastan": "^2.2",
         "phpunit/phpunit": "^9.5.10",
         "protonemedia/laravel-dusk-fakes": "^1.1",
         "spatie/laravel-ignition": "^1.0"
@@ -48,6 +60,9 @@
         ],
         "post-create-project-cmd": [
             "@php artisan key:generate --ansi"
+        ],
+        "analyze": [
+            "./vendor/bin/phpstan analyse"
         ]
     },
     "extra": {

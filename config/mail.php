@@ -49,6 +49,10 @@ return [
             'transport' => 'ses',
         ],
 
+        'hotash' => [
+            'transport' => 'hotash',
+        ],
+
         'mailgun' => [
             'transport' => 'mailgun',
         ],

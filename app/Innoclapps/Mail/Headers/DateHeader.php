@@ -1,0 +1,28 @@
+<?php
+/**
+ * Concord CRM - https://www.concordcrm.com
+ *
+ * @version   1.0.7
+ *
+ * @link      Releases - https://www.concordcrm.com/releases
+ * @link      Terms Of Service - https://www.concordcrm.com/terms
+ *
+ * @copyright Copyright (c) 2022-2022 KONKORD DIGITAL
+ */
+
+namespace App\Innoclapps\Mail\Headers;
+
+use Illuminate\Support\Carbon;
+
+class DateHeader extends Header
+{
+    /**
+     * Get the header value
+     *
+     * @return \Illuminate\Support\Carbon|null
+     */
+    public function getValue()
+    {
+        return $this->value ? Carbon::parse($this->value)->tz(config('app.timezone')) : null;
+    }
+}

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Arr;
 
 class EmailAccountMessage extends Model
 {
@@ -466,6 +467,54 @@ class EmailAccountMessage extends Model
         })->orderBy(\DB::raw('CAST(remote_id AS UNSIGNED)'), 'DESC')->first();
 
         return $result->remote_id ?? null;
+    }
+
+    /**
+     * Apply where in remote ids
+     *
+     * @see https://stackoverflow.com/questions/53683774/eloquent-delete-sqlstate22007-invalid-datetime-format-1292-truncated-incor
+     *
+     * @param  array  $remoteIds
+     * @param  null|\Closure  $callback
+     * @return static
+     */
+    public function whereInRemoteIds($remoteIds, $callback = null)
+    {
+        return $this->scopeQuery(function ($query) use ($remoteIds, $callback) {
+            if ($callback) {
+                $query = $callback($query);
+            }
+
+            return $query->whereIn('remote_id', Arr::valuesAsString($remoteIds));
+        });
+    }
+
+    /**
+     * Mark messages as read by remote ids
+     *
+     * @param  int  $folderId The folder id to not prevent conflicts in case of same remote uid's
+     * @param  array  $remoteIds
+     * @return bool
+     */
+    public function markAsReadByRemoteIds($folderId, array $remoteIds)
+    {
+        $this->newQuery()->whereHas('folders', function ($subQuery) use ($folderId) {
+            return $subQuery->where('folder_id', $folderId);
+        })->whereIn('remote_id', $remoteIds)->update(['is_read' => 1]);
+    }
+
+    /**
+     * Mark messages as unread by remote ids
+     *
+     * @param  int  $folderId The folder id to not prevent conflicts in case of same remote uid's
+     * @param  array  $remoteIds
+     * @return bool
+     */
+    public function markAsUnreadByRemoteIds($folderId, array $remoteIds)
+    {
+        $this->newQuery()->whereHas('folders', function ($subQuery) use ($folderId) {
+            return $subQuery->where('folder_id', $folderId);
+        })->whereIn('remote_id', $remoteIds)->update(['is_read' => 0]);
     }
 
     /** Persistency Start */

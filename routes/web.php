@@ -4,6 +4,7 @@ use App\Http\Controllers\EmailAccountConnectionTestController;
 use App\Http\Controllers\EmailAccountController;
 use App\Http\Controllers\MailController;
 use App\Http\Controllers\OAuthController;
+use App\Http\Controllers\TempMailController;
 use App\Mail\BestMail;
 use App\Mail\TestMail;
 use Illuminate\Support\Facades\Mail;
@@ -32,6 +33,8 @@ Route::middleware('splade')->group(function () {
     });
 
     require __DIR__.'/auth.php';
+
+    Route::get('/temp-mail', TempMailController::class)->name('temp-mail');
 
     Route::post('test-connection', EmailAccountConnectionTestController::class)->name('connection.test');
 

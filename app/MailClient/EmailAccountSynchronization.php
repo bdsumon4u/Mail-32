@@ -55,6 +55,8 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
 
     protected EmailAccountMessage $messages;
 
+    protected EmailAccountFolder $folders;
+
     /**
      * @var int
      */
@@ -86,6 +88,7 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
         protected  EmailAccount $account,
     ) {
         $this->messages = new EmailAccountMessage;
+        $this->folders = new EmailAccountFolder;
     }
 
     /**

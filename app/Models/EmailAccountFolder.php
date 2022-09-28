@@ -88,4 +88,55 @@ class EmailAccountFolder extends Model implements Metable
     {
         return (new EmailAccountFolderCollection($models))->sortByType();
     }
+
+    // REPOSITORY #
+
+    /**
+     * Mark the folder as not selectable and syncable
+     *
+     * @param  int  $id
+     * @return void
+     */
+    public function markAsNotSelectable(int $id)
+    {
+        $this->query()->where('id', $id)->update(['syncable' => false, 'selectable' => false]);
+    }
+
+    /**
+     * Count the total unread messages for a given folder
+     *
+     * @param  int  $folderId
+     * @return int
+     */
+    public function countUnreadMessages(int $folderId): int
+    {
+        return $this->countReadOrUnreadMessages($folderId, 0);
+    }
+
+    /**
+     * Count the total read messages for a given folder
+     *
+     * @param  int  $folderId
+     * @return int
+     */
+    public function countReadMessages(int $folderId): int
+    {
+        return $this->countReadOrUnreadMessages($folderId, 1);
+    }
+
+    /**
+     * Count read or unread messages for a given folder
+     *
+     * @param  int  $folderId
+     * @param  int  $isRead
+     * @return int
+     */
+    protected function countReadOrUnreadMessages($folderId, $isRead)
+    {
+        return $this->query()
+            ->select(['id'])
+            ->withCount(['messages' => function ($query) use ($isRead) {
+                return $query->where('is_read', $isRead);
+            }])->where(['id' => $folderId])->first()->messages_count ?? 0;
+    }
 }

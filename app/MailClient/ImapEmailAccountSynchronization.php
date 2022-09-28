@@ -13,10 +13,10 @@
 namespace App\MailClient;
 
 use App\Enums\SyncState;
-use Illuminate\Support\Str;
+use App\MailClient\Exceptions\SyncFolderTimeoutException;
 use Ddeboer\Imap\Exception\UnexpectedEncodingException;
 use Ddeboer\Imap\Exception\UnsupportedCharsetException;
-use App\MailClient\Exceptions\SyncFolderTimeoutException;
+use Illuminate\Support\Str;
 
 class ImapEmailAccountSynchronization extends EmailAccountSynchronization
 {
@@ -31,12 +31,12 @@ class ImapEmailAccountSynchronization extends EmailAccountSynchronization
     const MAX_UIDINVALID_RESYNCS = 5;
 
     /**
-    * Start account messages synchronization
-    *
-    * @throws \App\MailClient\Exceptions\SyncFolderTimeoutException
-    *
-    * @return void
-    */
+     * Start account messages synchronization
+     *
+     * @return void
+     *
+     * @throws \App\MailClient\Exceptions\SyncFolderTimeoutException
+     */
     public function syncMessages()
     {
         $this->checkForRemovedMessages();
@@ -59,8 +59,7 @@ class ImapEmailAccountSynchronization extends EmailAccountSynchronization
     /**
      * Sync account messages
      *
-     * @param \App\Models\EmailAccountFolder $folder
-     *
+     * @param  \App\Models\EmailAccountFolder  $folder
      * @return void
      */
     protected function retrieveAndProcess($folder)
@@ -107,7 +106,7 @@ class ImapEmailAccountSynchronization extends EmailAccountSynchronization
         try {
             $this->processMessages($messages, $folder);
         } catch (UnexpectedEncodingException|UnsupportedCharsetException $e) {
-            $this->error('Mail message was skipped from import because of ' . Str::of($e::class)->headline()->lower() . ' exception.');
+            $this->error('Mail message was skipped from import because of '.Str::of($e::class)->headline()->lower().' exception.');
         }
 
         // Sync the flags only if it's not initial sync
@@ -144,8 +143,7 @@ class ImapEmailAccountSynchronization extends EmailAccountSynchronization
     /**
      * Synchronize message flags
      *
-     * @param \App\Models\EmailAccountFolder $folder
-     *
+     * @param  \App\Models\EmailAccountFolder  $folder
      * @return null
      */
     protected function syncFlags($folder)
@@ -160,8 +158,8 @@ class ImapEmailAccountSynchronization extends EmailAccountSynchronization
         // Store the total read and unread before update
         // so we can compare them later after the update so we can know
         // if sync is performed
-        list($readCountBeforeUpdate, $unreadCountBeforeUpdate
-        ) = [$this->getCountReadMessages($folder->id), $this->getCountUnreadMessages($folder->id)];
+        $readCountBeforeUpdate = $this->getCountReadMessages($folder->id);
+        $unreadCountBeforeUpdate = $this->getCountUnreadMessages($folder->id);
 
         // Perform the update
         $this->updateReadAndUnreadMessages($remoteFolder, $folder->id);
@@ -240,14 +238,13 @@ class ImapEmailAccountSynchronization extends EmailAccountSynchronization
      * Check the folder sync state
      * Useful when user injected selectable on non selectable folder via API
      *
-     * @param \App\Innoclapps\MailClient\Imap\Folder $remoteFolder
-     *
-     * @return boolean
+     * @param  \App\Innoclapps\MailClient\Imap\Folder  $remoteFolder
+     * @return bool
      */
     protected function checkSelectable($remoteFolder)
     {
         if (! $remoteFolder->isSelectable()) {
-            $this->folders->markAsNotSelectable($folder->id);
+            $this->folders->markAsNotSelectable($remoteFolder->id); // HOTASH # $folder->id
 
             return false;
         }
@@ -259,9 +256,8 @@ class ImapEmailAccountSynchronization extends EmailAccountSynchronization
      * Update the read and unread messages for a given remote folder
      * and local folder
      *
-     * @param \App\Innoclapps\MailClient\Imap\Folder $remoteFolder
-     * @param int $folderId
-     *
+     * @param  \App\Innoclapps\MailClient\Imap\Folder  $remoteFolder
+     * @param  int  $folderId
      * @return void
      */
     protected function updateReadAndUnreadMessages($remoteFolder, $folderId)
@@ -282,8 +278,7 @@ class ImapEmailAccountSynchronization extends EmailAccountSynchronization
     /**
      * Get the count of total read local messages
      *
-     * @param int $folderId
-     *
+     * @param  int  $folderId
      * @return int
      */
     protected function getCountReadMessages($folderId)
@@ -294,8 +289,7 @@ class ImapEmailAccountSynchronization extends EmailAccountSynchronization
     /**
      * Get the count of total read local messages
      *
-     * @param int $folderId
-     *
+     * @param  int  $folderId
      * @return int
      */
     protected function getCountUnreadMessages($folderId)

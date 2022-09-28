@@ -182,6 +182,6 @@ abstract class AbstractMessage extends AbstractMask implements MessageInterface
      */
     public function isSentFromApplication()
     {
-        return ! is_null($this->getHeader('x-concord-app'));
+        return ! is_null($this->getHeader('X-Hotash-App'));
     }
 }

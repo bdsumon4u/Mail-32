@@ -7,9 +7,11 @@ use App\Enums\EmailAccountType;
 use App\Enums\SyncState;
 use App\Innoclapps\MailClient\Client;
 use App\Innoclapps\MailClient\ClientManager;
+use App\Innoclapps\MailClient\FolderCollection;
 use App\Mota\HasMeta;
 use App\Mota\Metable;
 use App\Support\Concerns\HasImap;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -87,6 +89,11 @@ class EmailAccount extends Model implements Metable
     public function oAuthAccount(): HasOne
     {
         return $this->hasOne(OAuthAccount::class, 'id', 'o_auth_account_id'); // HOTASH #
+    }
+
+    public function scopeSyncable(Builder $query)
+    {
+        return $query->where('sync_state', SyncState::ENABLED);
     }
 
     /**
@@ -298,5 +305,128 @@ class EmailAccount extends Model implements Metable
         }
 
         return $this->client;
+    }
+
+    /**
+     * Set that this account requires authentication
+     *
+     * @param  bool  $value
+     * @return void
+     */
+    public function setRequiresAuthentication($value = true)
+    {
+        if (! is_null($this->oAuthAccount)) {
+            $this->oAuthAccount()->update(
+                ['requires_auth' => $value],
+            );
+        }
+
+        $this->update(['requires_auth' => $value]);
+    }
+
+    /**
+     * Set the account synchronization state
+     *
+     * @param  \App\Enums\SyncState  $state
+     * @param  string|null  $comment
+     * @return void
+     */
+    public function setSyncState(SyncState $state, $comment = null)
+    {
+        $this->unguarded(function () use ($state, $comment) {
+            $this->update([
+                'sync_state' => $state,
+                'sync_state_comment' => $comment,
+            ]);
+        });
+    }
+
+    public function updateFolders($folders)
+    {
+        foreach ($folders as $folder) {
+            $this->persistForAccount($folder);
+        }
+    }
+
+    /**
+     * Update folder for a given account
+     *
+     * @param  array  $folder
+     * @return \App\Models\EmailAccountFolder
+     */
+    public function persistForAccount(array $folder)
+    {
+        $parent = EmailAccountFolder::updateOrCreate(
+            $this->getUpdateOrCreateAttributes($this, $folder),
+            array_merge($folder, [
+                'email_account_id' => $this->id,
+                'syncable' => $folder['syncable'] ?? false,
+            ])
+        );
+
+        $this->handleChildFolders($parent, $folder);
+
+        return $parent;
+    }
+
+    /**
+     * Handle the child folders creation process
+     *
+     * @param  \App\Models\EmailAccountFolder  $parentFolder
+     * @param  array  $folder
+     * @param  \App\Models\EmailAccount  $account
+     * @return void
+     */
+    protected function handleChildFolders($parentFolder, $folder)
+    {
+        // Avoid errors if the children key is not set
+        if (! isset($folder['children'])) {
+            return;
+        }
+
+        if ($folder['children'] instanceof FolderCollection) {
+            /**
+             * @see \App\Listeners\CreateEmailAccountViaOAuth
+             */
+            $folder['children'] = $folder['children']->toArray();
+        }
+
+        foreach ($folder['children'] as $child) {
+            $parent = $this->persistForAccount(array_merge($child, [
+                'parent_id' => $parentFolder->id,
+            ]));
+
+            $this->handleChildFolders($parent, $child);
+        }
+    }
+
+    /**
+     * Get the attributes that should be used for update or create method
+     *
+     * @param  \App\Models\EmailAccount  $account
+     * @param  array  $folder
+     * @return array
+     */
+    protected function getUpdateOrCreateAttributes($folder)
+    {
+        $attributes = ['email_account_id' => $this->id];
+
+        // If the folder database ID is passed
+        // use the ID as unique identifier for the folder
+        if (isset($folder['id'])) {
+            $attributes['id'] = $folder['id'];
+        } else {
+            // For imap account, we use the name as unique identifier
+            // as the remote_id may not always be unique
+            if ($this->connection_type === ConnectionType::Imap) {
+                $attributes['name'] = $folder['name'];
+            } else {
+                // For API based accounts e.q. Gmail and Outlook
+                // we use the remote_id as unique identifier
+                $attributes['remote_id'] = $folder['remote_id'];
+            }
+        }
+
+        return $attributes;
     }
 }

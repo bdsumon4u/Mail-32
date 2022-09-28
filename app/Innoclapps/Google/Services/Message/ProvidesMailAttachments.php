@@ -16,7 +16,7 @@ use Illuminate\Support\Collection;
 
 trait ProvidesMailAttachments
 {
-    protected Collection $attachments;
+    protected ?Collection $attachments = null;
 
     /**
      * Check whether the message has attachments
@@ -45,9 +45,12 @@ trait ProvidesMailAttachments
      */
     public function getAttachments()
     {
-        if ($this->attachments->isNotEmpty()) {
+        if (! is_null($this->attachments)) {
             return $this->attachments;
         }
+
+        $this->attachments = new Collection;
+        $parts = $this->getAllParts($this->parts);
 
         $parts = $this->getAllParts($this->parts);
 

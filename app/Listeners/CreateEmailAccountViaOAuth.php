@@ -16,9 +16,7 @@ use App\Enums\ConnectionType;
 use App\Enums\EmailAccountType;
 use App\Innoclapps\Facades\OAuthState;
 use App\Innoclapps\MailClient\ClientManager;
-use App\Innoclapps\MailClient\FolderCollection;
 use App\Models\EmailAccount;
-use App\Models\EmailAccountFolder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 
@@ -128,9 +126,7 @@ class CreateEmailAccountViaOAuth
         //     $account->setMeta('from_name_header', $fromName);
         // }
 
-        foreach ($payload['folders'] ?? [] as $folder) {
-            $this->persistForAccount($account, $folder);
-        }
+        $account->persistForAccount($payload['folders']);
 
         foreach (['trash', 'sent'] as $folderType) {
             if ($folder = $account->folders->firstWhere('type', $folderType)) {
@@ -141,89 +137,6 @@ class CreateEmailAccountViaOAuth
         }
 
         return $account;
-    }
-
-    /**
-     * Update folder for a given account
-     *
-     * @param  \App\Models\EmailAccount  $account
-     * @param  array  $folder
-     * @return \App\Models\EmailAccountFolder
-     */
-    public function persistForAccount(EmailAccount $account, array $folder)
-    {
-        $parent = EmailAccountFolder::updateOrCreate(
-            $this->getUpdateOrCreateAttributes($account, $folder),
-            array_merge($folder, [
-                'email_account_id' => $account->id,
-                'syncable' => $folder['syncable'] ?? false,
-            ])
-        );
-
-        $this->handleChildFolders($parent, $folder, $account);
-
-        return $parent;
-    }
-
-    /**
-     * Handle the child folders creation process
-     *
-     * @param  \App\Models\EmailAccountFolder  $parentFolder
-     * @param  array  $folder
-     * @param  \App\Models\EmailAccount  $account
-     * @return void
-     */
-    protected function handleChildFolders($parentFolder, $folder, $account)
-    {
-        // Avoid errors if the children key is not set
-        if (! isset($folder['children'])) {
-            return;
-        }
-
-        if ($folder['children'] instanceof FolderCollection) {
-            /**
-             * @see \App\Listeners\CreateEmailAccountViaOAuth
-             */
-            $folder['children'] = $folder['children']->toArray();
-        }
-
-        foreach ($folder['children'] as $child) {
-            $parent = $this->persistForAccount($account, array_merge($child, [
-                'parent_id' => $parentFolder->id,
-            ]));
-
-            $this->handleChildFolders($parent, $child, $account);
-        }
-    }
-
-    /**
-     * Get the attributes that should be used for update or create method
-     *
-     * @param  \App\Models\EmailAccount  $account
-     * @param  array  $folder
-     * @return array
-     */
-    protected function getUpdateOrCreateAttributes($account, $folder)
-    {
-        $attributes = ['email_account_id' => $account->id];
-
-        // If the folder database ID is passed
-        // use the ID as unique identifier for the folder
-        if (isset($folder['id'])) {
-            $attributes['id'] = $folder['id'];
-        } else {
-            // For imap account, we use the name as unique identifier
-            // as the remote_id may not always be unique
-            if ($account->connection_type === ConnectionType::Imap) {
-                $attributes['name'] = $folder['name'];
-            } else {
-                // For API based accounts e.q. Gmail and Outlook
-                // we use the remote_id as unique identifier
-                $attributes['remote_id'] = $folder['remote_id'];
-            }
-        }
-
-        return $attributes;
     }
 
     /**

@@ -4,15 +4,18 @@ namespace App\Models;
 
 use App\Enums\ConnectionType;
 use App\Innoclapps\MailClient\FolderIdentifier;
+use App\Mota\HasMeta;
+use App\Mota\Metable;
 use App\Support\EmailAccountFolderCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class EmailAccountFolder extends Model
+class EmailAccountFolder extends Model implements Metable
 {
     use HasFactory;
+    use HasMeta;
 
     /**
      * The attributes that are mass assignable.

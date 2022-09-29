@@ -12,8 +12,8 @@
 
 namespace App\MailClient;
 
-use App\Models\EmailAccount;
 use App\MailClient\Exceptions\SyncFolderTimeoutException;
+use App\Models\EmailAccount;
 
 class EmailAccountSynchronizationManager
 {
@@ -35,14 +35,14 @@ class EmailAccountSynchronizationManager
     /**
      * Number of seconds passed to store last emails batch
      *
-     * @var integer
+     * @var int
      */
     protected $batchSaveTime = -1;
 
     /**
      * Timestamp when last batch was saved
      *
-     * @var integer
+     * @var int
      */
     protected $batchSaveTimestamp = 0;
 
@@ -61,22 +61,20 @@ class EmailAccountSynchronizationManager
     /**
      * Get the synchronizer class
      *
-     * @param \App\Models\EmailAccount $account
-     *
+     * @param  \App\Models\EmailAccount  $account
      * @return mixed
      */
     public static function getSynchronizer(EmailAccount $account)
     {
         $part = $account->connection_type->value;
 
-        return self::{'get' . $part . 'Synchronizer'}($account);
+        return self::{'get'.$part.'Synchronizer'}($account);
     }
 
     /**
      * Get the IMAP account synchronizer
      *
-     * @param \App\Models\EmailAccount $account
-     *
+     * @param  \App\Models\EmailAccount  $account
      * @return ImapEmailAccountSynchronization
      */
     public static function getImapSynchronizer(EmailAccount $account)
@@ -87,8 +85,7 @@ class EmailAccountSynchronizationManager
     /**
      * Get the Gmail account synchronizer
      *
-     * @param \App\Models\EmailAccount $account
-     *
+     * @param  \App\Models\EmailAccount  $account
      * @return ImapEmailAccountSynchronization
      */
     public static function getGmailSynchronizer(EmailAccount $account)
@@ -99,8 +96,7 @@ class EmailAccountSynchronizationManager
     /**
      * Get the Outlook account synchronizer
      *
-     * @param \App\Models\EmailAccount $account
-     *
+     * @param  \App\Models\EmailAccount  $account
      * @return ImapEmailAccountSynchronization
      */
     public static function getOutlookSynchronizer(EmailAccount $account)
@@ -111,7 +107,7 @@ class EmailAccountSynchronizationManager
     /**
      * Set the command class
      *
-     * @param \App\Console\Commands\EmailAccountsSynchronization $command
+     * @param  \App\Console\Commands\EmailAccountsSynchronization  $command
      */
     public function setCommand($command)
     {
@@ -123,7 +119,7 @@ class EmailAccountSynchronizationManager
     /**
      * Check whether the synchronization is in force mode
      *
-     * @return boolean
+     * @return bool
      */
     public function isForceMode()
     {
@@ -133,7 +129,7 @@ class EmailAccountSynchronizationManager
     /**
      * Check whether the synchronization is in chill mode
      *
-     * @return boolean
+     * @return bool
      */
     public function isChillMode()
     {
@@ -144,7 +140,7 @@ class EmailAccountSynchronizationManager
      * Check timeout for done work with current origin
      * Exclude force mode
      *
-     * @return boolean
+     * @return bool
      */
     protected function isTimeout()
     {
@@ -158,8 +154,7 @@ class EmailAccountSynchronizationManager
     /**
      * Log info if process invoked via command
      *
-     * @param string $message
-     *
+     * @param  string  $message
      * @return void
      */
     protected function info($message)
@@ -174,8 +169,7 @@ class EmailAccountSynchronizationManager
     /**
      * Log error if process invoked via command
      *
-     * @param string $message
-     *
+     * @param  string  $message
      * @return void
      */
     protected function error($message)
@@ -192,8 +186,8 @@ class EmailAccountSynchronizationManager
      *
      * Calculates time between batch saves.
      *
-     * @param bool $isFolderSyncComplete
-     * @param null|\App\Models\EmailAccountFolder $folder
+     * @param  bool  $isFolderSyncComplete
+     * @param  null|\App\Models\EmailAccountFolder  $folder
      */
     protected function cleanUp($isFolderSyncComplete = false, $folder = null)
     {

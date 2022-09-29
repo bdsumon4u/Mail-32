@@ -59,14 +59,14 @@ interface AttachmentInterface
     /**
      * Check whether the attachment is inline
      *
-     * @return boolean
+     * @return bool
      */
     public function isInline();
 
     /**
      * Check whether the attachment is embedded message
      *
-     * @return boolean
+     * @return bool
      */
     public function isEmbeddedMessage();
 }

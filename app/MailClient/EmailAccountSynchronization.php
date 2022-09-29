@@ -43,10 +43,7 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
      */
     const DB_BATCH_SIZE = 100;
 
-    /**
-     * @var \App\Innoclapps\Contracts\MailClient\ImapInterface
-     */
-    protected $imap;
+    protected ?ImapInterface $imap;
 
     /**
      * @var \App\Innoclapps\MailClient\FolderCollection
@@ -79,9 +76,6 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
     /**
      * Initialize new EmailAccountSynchronization instance.
      *
-     * @param  \App\Contracts\Repositories\EmailAccountRepository  $accounts
-     * @param  \App\Contracts\Repositories\EmailAccountMessageRepository  $messages
-     * @param  \App\Contracts\Repositories\EmailAccountFolderRepository  $folders
      * @param  \App\Models\EmailAccount  $account
      */
     public function __construct(
@@ -160,6 +154,8 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
 
             $this->error('Email account synchronization stopped because empty refresh token.');
         }
+
+        return false;
     }
 
     /**
@@ -191,7 +187,7 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
      */
     public function getImapClient(): ImapInterface
     {
-        if (is_null($this->imap)) {
+        if (! isset($this->imap)) {
             $this->imap = $this->account->createClient()->getImap();
         }
 
@@ -325,8 +321,8 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
         $columns = ['subject', 'message_id', 'remote_id', 'id'];
 
         return ($folder ?
-                $this->messages->getUidsByFolder($folder->id, $columns) :
-                $this->messages->getUidsByAccount($this->account->id, $columns))->eager();
+            $this->messages->getUidsByFolder($folder->id, $columns) :
+            $this->messages->getUidsByAccount($this->account->id, $columns))->eager();
     }
 
     /**
@@ -340,7 +336,7 @@ abstract class EmailAccountSynchronization extends EmailAccountSynchronizationMa
     {
         if ($dbMessage = $this->findDatabaseMessageViaRemoteId($id, $folder)) {
             // Triggers observers
-            $this->messages->delete($dbMessage->id);
+            $dbMessage->delete();
 
             $this->info(sprintf('Removed local message which was remotely removed, UID: %s', $id));
             $this->synced = true;

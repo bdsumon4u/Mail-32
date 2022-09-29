@@ -15,8 +15,8 @@ namespace App\MailClient\Exceptions;
 class SyncFolderTimeoutException extends \RuntimeException
 {
     /**
-     * @param string $account Account email
-     * @param string $folderName Email account folder full name
+     * @param  string  $account Account email
+     * @param  string  $folderName Email account folder full name
      */
     public function __construct($account, $folderName)
     {

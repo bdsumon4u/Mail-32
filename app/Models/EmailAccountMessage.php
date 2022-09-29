@@ -297,7 +297,7 @@ class EmailAccountMessage extends Model
      *
      * @param  int  $folderId
      * @param  array  $columns
-     * @return \Illuminate\Collections\LazyCollection
+     * @return \Illuminate\Support\LazyCollection
      */
     public function getUidsByFolder($folderId, $columns = ['remote_id'])
     {
@@ -311,7 +311,7 @@ class EmailAccountMessage extends Model
      *
      * @param  int  $accountId
      * @param  array  $columns
-     * @return \Illuminate\Collections\LazyCollection
+     * @return \Illuminate\Support\LazyCollection
      */
     public function getUidsByAccount($accountId, $columns = ['remote_id'])
     {
@@ -490,6 +490,214 @@ class EmailAccountMessage extends Model
     }
 
     /**
+     * Batch move messages to a given folder
+     *
+     * @param  \Illuminate\Database\Eloquent\Collection  $messages
+     * @param  int  $to
+     * @param  null|int  $from
+     * @return void
+     */
+    public function batchMoveTo($messages, $to, $from = null)
+    {
+        $messages->loadMissing('folders');
+
+        $allAccounts = resolve(EmailAccountRepository::class)->with('oAuthAccount')->all();
+        $allFolders = $this->getFolderRepository()->with('account')->all();
+        $to = $allFolders->find($to);
+
+        $messagesByAccount = $messages->groupBy('email_account_id');
+
+        foreach ($messagesByAccount as $accountId => $accountMessages) {
+            $messagesByFromFolder = $accountMessages->groupBy(
+                fn ($message) => $from ? $message->folders->find($from)->id : $message->folders->first()->id
+            )->reject(
+                fn ($messages, $fromFolderId) => $allFolders->find($fromFolderId)->is($to) || $to->support_move === false
+            );
+
+            if ($messagesByFromFolder->isNotEmpty()) {
+                $client = $allAccounts->find($accountId)->getClient();
+                $remoteFolders = $client->getFolders();
+
+                // We will use the first message to get the FROM folder
+                // as the messages are grouped by FROM, for the rest messages
+                // the FROM folder will be the same
+                $from = $allFolders->find($messagesByFromFolder->keys()->first());
+
+                foreach ($messagesByFromFolder as $messages) {
+                    $maps = $client->batchMoveMessages(
+                        $messages->pluck('remote_id')->all(),
+                        $remoteFolders->find($to->identifier()),
+                        $remoteFolders->find($from->identifier())
+                    );
+
+                    foreach ($messages as $message) {
+                        // Maps of old => new values exists, in this case, update the current
+                        // messages with the new remote_id's to avoid any syncing errors
+                        if (is_array($maps)) {
+                            // This will help to not delete the message from database
+                            // because it's removed
+                            if (array_key_exists($message->remote_id, $maps)) {
+                                $this->update(['remote_id' => $maps[$message->remote_id]], $message->id);
+                            }
+                        }
+
+                        // Since messages can belong to multiple folders e.q. for Gmail
+                        // We need to remove the FROM folder from the current folders
+                        // and push the new folder
+                        $message->folders()
+                            ->sync(
+                                $message->folders->reject(
+                                    fn ($folder) => $folder->id == $from->id
+                                )->push($to)
+                            );
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Parmanently delete given messages
+     *
+     * @param \Illuminate\Support\Collection
+     * @return void
+     */
+    public function batchDelete($messages)
+    {
+        $allAccounts = resolve(EmailAccountRepository::class)->all();
+        $messagesByAccount = $messages->groupBy('email_account_id');
+
+        $messagesByAccount->each(function ($messages, $accountId) use ($allAccounts) {
+            $account = $allAccounts->find($accountId);
+            $client = $account->getClient();
+            $client->setTrashFolder($client->getFolders()->find($account->trashFolder->identifier()))
+                ->batchDeleteMessages($messages->pluck('remote_id')->all());
+
+            $messages->each(function ($message) {
+                $this->delete($message->id);
+            });
+        });
+    }
+
+    /**
+     * Mark a message as read
+     *
+     * @param  int  $id
+     * @param  int|null  $folderId
+     * @return bool
+     */
+    public function markAsRead($id, $folderId = null)
+    {
+        $message = $this->find($id);
+
+        if ($message->is_read) {
+            return false;
+        }
+
+        $folders = $folderId ?
+        [$this->getFolderRepository()->with('account')->find($folderId)] :
+        $message->folders->loadMissing('account');
+
+        foreach ($folders as $folder) {
+            $message->account->createClient()->getMessage(
+                $message->remote_id,
+                $folder->identifier()
+            )->markAsRead();
+        }
+
+        return $this->update(['is_read' => true], $id);
+    }
+
+    /**
+     * Mark a message as unread
+     *
+     * @param  int  $id
+     * @param  int|null  $folderId
+     * @return bool
+     */
+    public function markAsUnread($id, $folderId)
+    {
+        $message = $this->find($id);
+
+        if (! $message->is_read) {
+            return false;
+        }
+
+        $folders = $folderId ?
+        [$this->getFolderRepository()->with('account')->find($folderId)] :
+        $message->folders->loadMissing('account');
+
+        foreach ($folders as $folder) {
+            $message->account->createClient()->getMessage(
+                $message->remote_id,
+                $folder->identifier()
+            )->markAsUnread();
+        }
+
+        return $this->update(['is_read' => false], $id);
+    }
+
+    /**
+     * Batch mark a messages as read
+     *
+     * @param  \Illuminate\Support\Collection  $messages
+     * @param  int  $accountId
+     * @param  int  $folderId
+     * @return void
+     */
+    public function batchMarkAsRead($messages, $accountId, $folderId)
+    {
+        $account = resolve(EmailAccountRepository::class)->find($accountId);
+
+        $messages = $messages->reject(fn ($message) => $message->is_read === true)->values();
+
+        if ($messages->isEmpty()) {
+            return;
+        }
+
+        $account->createClient()->batchMarkAsRead(
+            $messages->pluck('remote_id')->all(),
+            $this->getFolderRepository()->find($folderId)->identifier()
+        );
+
+        $this->scopeQuery(
+            fn ($query) => $query->whereIn('id', $messages->pluck('id')->all())
+        )->massUpdate(['is_read' => true]);
+
+        $this->resetScope();
+    }
+
+    /**
+     * Mark a message as read
+     *
+     * @param  \Illuminate\Support\Collection  $messages
+     * @param  int  $accountId
+     * @param  int  $folderId
+     * @return bool
+     */
+    public function batchMarkAsUnread($messages, $accountId, $folderId)
+    {
+        $account = resolve(EmailAccountRepository::class)->find($accountId);
+
+        $messages = $messages->reject(fn ($message) => $message->is_read === false)->values();
+
+        if ($messages->isEmpty()) {
+            return;
+        }
+
+        $account->createClient()->batchMarkAsUnread(
+            $messages->pluck('remote_id')->all(),
+            $this->getFolderRepository()->find($folderId)->identifier()
+        );
+
+        $this->scopeQuery(
+            fn ($query) => $query->whereIn('id', $messages->pluck('id')->all())
+        )->massUpdate(['is_read' => false]);
+
+        $this->resetScope();
+    }
+
+    /**
      * Mark messages as read by remote ids
      *
      * @param  int  $folderId The folder id to not prevent conflicts in case of same remote uid's
@@ -561,7 +769,7 @@ class EmailAccountMessage extends Model
      * Persist the message header in database
      *
      * @param \App\Innoclapps\Contracts\MailClient\MessageInterface
-     * @param  \App\EmailAcccountMessage  $dbMessage
+     * @param  \App\Models\EmailAccountMessage  $dbMessage
      * @return void
      */
     protected function persistHeaders($message, $dbMessage)

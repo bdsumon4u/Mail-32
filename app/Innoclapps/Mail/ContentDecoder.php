@@ -17,10 +17,10 @@ class ContentDecoder
     /**
      * Decode the given string
      *
-     * @param string $str The string being encoded.
-     * @param string|null $contentTransferEncoding The type of Content-Transfer-Encoding that $str is encoded.
-     * @param string|null $fromEncoding The type of encoding that $str is encoded.
-     * @param string|null $toEncoding The type of encoding that $str is being converted to.
+     * @param  string  $str The string being encoded.
+     * @param  string|null  $contentTransferEncoding The type of Content-Transfer-Encoding that $str is encoded.
+     * @param  string|null  $fromEncoding The type of encoding that $str is encoded.
+     * @param  string|null  $toEncoding The type of encoding that $str is being converted to.
      * @return string
      */
     public static function decode($str, $contentTransferEncoding = null, $fromEncoding = null, $toEncoding = null)

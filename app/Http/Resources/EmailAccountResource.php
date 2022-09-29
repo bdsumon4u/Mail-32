@@ -15,6 +15,7 @@ namespace App\Http\Resources;
 use App\Enums\ConnectionType;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin \App\Models\EmailAccount */
 class EmailAccountResource extends JsonResource
 {
     /**
@@ -39,9 +40,9 @@ class EmailAccountResource extends JsonResource
             'formatted_from_name_header' => $this->formatted_from_name_header,
             'create_contact' => $this->create_contact,
             'folders' => EmailAccountFolderResource::collection($this->folders),
-            'folders_tree' => $this->folders->createTree($request),
-            'active_folders' => EmailAccountFolderResource::collection($this->folders->active()),
-            'active_folders_tree' => $this->folders->createTreeFromActive($request),
+            'folders_tree' => $this->folders->createTree($request), // @phpstan-ignore-line
+            'active_folders' => EmailAccountFolderResource::collection($this->folders->active()), // @phpstan-ignore-line
+            'active_folders_tree' => $this->folders->createTreeFromActive($request), // @phpstan-ignore-line
             'sent_folder' => new EmailAccountFolderResource($this->whenLoaded('sentFolder')),
             'trash_folder' => new EmailAccountFolderResource($this->whenLoaded('trashFolder')),
             'sent_folder_id' => $this->sent_folder_id,

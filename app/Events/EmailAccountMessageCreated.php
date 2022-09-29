@@ -12,9 +12,9 @@
 
 namespace App\Events;
 
+use App\Innoclapps\Contracts\MailClient\MessageInterface;
 use App\Models\EmailAccountMessage;
 use Illuminate\Queue\SerializesModels;
-use App\Innoclapps\Contracts\MailClient\MessageInterface;
 
 class EmailAccountMessageCreated
 {
@@ -23,8 +23,8 @@ class EmailAccountMessageCreated
     /**
      * Create a new event instance.
      *
-     * @param \App\Models\EmailAccountMessage $message
-     * @param \App\Innoclapps\Contracts\MailClient\MessageInterface $message
+     * @param  \App\Models\EmailAccountMessage  $message
+     * @param  \App\Innoclapps\Contracts\MailClient\MessageInterface  $remoteMessage
      * @return void
      */
     public function __construct(public EmailAccountMessage $message, public MessageInterface $remoteMessage)

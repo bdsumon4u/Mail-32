@@ -25,12 +25,11 @@ trait QueuesMessagesForDelete
     /**
      * Get a message from the delete queue
      *
-     * @param string $subject
-     * @param string $messageId
-     *
+     * @param  string  $subject
+     * @param  string  $messageId
      * @return \App\Models\EmailAccountMessage|null
      */
-    protected function getMessageFromDeleteQueue($subject, $messageId) : ?EmailAccountMessage
+    protected function getMessageFromDeleteQueue($subject, $messageId): ?EmailAccountMessage
     {
         foreach ($this->getDeleteQueueKeys() as $folderKey) {
             $index = $this->getQueuedMessageForDeleteIndex($folderKey, $subject, $messageId);
@@ -45,12 +44,11 @@ trait QueuesMessagesForDelete
     /**
      * Adds a new message to the delete queue
      *
-     * @param string|int $remoteId
-     * @param \App\Models\EmailAccountFolder $folder
-     *
+     * @param  string|int  $remoteId
+     * @param  \App\Models\EmailAccountFolder  $folder
      * @return void
      */
-    protected function addMessageToDeleteQueue(string|int $remoteId, EmailAccountFolder $folder) : void
+    protected function addMessageToDeleteQueue(string|int $remoteId, EmailAccountFolder $folder): void
     {
         $key = $this->createDeleteQueueKey($folder->id);
         $this->queuedForDelete[$key] ??= [];
@@ -64,12 +62,11 @@ trait QueuesMessagesForDelete
     /**
      * Remove message from the delete queue
      *
-     * @param string $subject
-     * @param string $messageId
-     *
+     * @param  string  $subject
+     * @param  string  $messageId
      * @return void
      */
-    protected function removeMessageFromDeleteQueue($subject, $messageId) : void
+    protected function removeMessageFromDeleteQueue($subject, $messageId): void
     {
         foreach ($this->getDeleteQueueKeys() as $folderKey) {
             $index = $this->getQueuedMessageForDeleteIndex($folderKey, $subject, $messageId);
@@ -86,7 +83,7 @@ trait QueuesMessagesForDelete
      *
      * @return void
      */
-    protected function deleteQueuedMessages() : void
+    protected function deleteQueuedMessages(): void
     {
         foreach ($this->queuedForDelete as $key => $messages) {
             [$string, $folderId] = explode('-', $key);
@@ -102,13 +99,12 @@ trait QueuesMessagesForDelete
     /**
      * Get the queued message for delete index
      *
-     * @param string $queueKey
-     * @param string $subject
-     * @param string $messageId
-     *
+     * @param  string  $queueKey
+     * @param  string  $subject
+     * @param  string  $messageId
      * @return null|int
      */
-    protected function getQueuedMessageForDeleteIndex($queueKey, $subject, $messageId) : ?int
+    protected function getQueuedMessageForDeleteIndex($queueKey, $subject, $messageId): ?int
     {
         foreach ($this->queuedForDelete[$queueKey] as $index => $message) {
             if ($message->subject == $subject && $message->message_id == $messageId) {
@@ -124,7 +120,7 @@ trait QueuesMessagesForDelete
      *
      * @return array
      */
-    protected function getDeleteQueueKeys() : array
+    protected function getDeleteQueueKeys(): array
     {
         return array_keys($this->queuedForDelete);
     }
@@ -132,12 +128,11 @@ trait QueuesMessagesForDelete
     /**
      * Provides the queue delete key
      *
-     * @param int $folderId
-     *
+     * @param  int  $folderId
      * @return string
      */
-    protected function createDeleteQueueKey(int $folderId) : string
+    protected function createDeleteQueueKey(int $folderId): string
     {
-        return 'folder-' . $folderId;
+        return 'folder-'.$folderId;
     }
 }

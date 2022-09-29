@@ -12,11 +12,11 @@
 
 namespace App\Events;
 
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
 
 class EmailAccountsSyncFinished implements ShouldBroadcastNow
 {
@@ -27,7 +27,7 @@ class EmailAccountsSyncFinished implements ShouldBroadcastNow
     /**
      * Create new EmailAccountsSyncFinished instance.
      *
-     * @param boolean $syncPerformed
+     * @param  bool  $syncPerformed
      */
     public function __construct(protected bool $syncPerformed)
     {
@@ -56,7 +56,7 @@ class EmailAccountsSyncFinished implements ShouldBroadcastNow
     /**
      * Determine if this event should broadcast.
      *
-     * @return boolean
+     * @return bool
      */
     public function broadcastWhen()
     {

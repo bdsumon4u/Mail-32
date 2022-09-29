@@ -21,7 +21,7 @@ class EmailAccountFolderResource extends JsonResource
             'email_account_id' => $this->email_account_id,
             'remote_id' => $this->remote_id,
             'name' => $this->name,
-            'label' => $this->label,
+            'display_name' => $this->display_name,
             'syncable' => $this->syncable,
             'selectable' => $this->selectable,
             'unread_count' => (int) $this->unread_count ?: 0, // @phpstan-ignore-line

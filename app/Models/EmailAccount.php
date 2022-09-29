@@ -19,6 +19,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * @property \App\Enums\EmailAccountType $type
+ * @property string $from_name_header
+ * @property string $formatted_from_name_header
+ */
 class EmailAccount extends Model implements Metable
 {
     use HasFactory;
@@ -29,6 +34,11 @@ class EmailAccount extends Model implements Metable
      * Indicates the primary meta key for user
      */
     const PRIMARY_META_KEY = 'primary-email-account';
+
+    /**
+     * The default shared account from header type
+     */
+    const DEFAULT_FROM_NAME_HEADER = '{agent} from {company}';
 
     /**
      * Client instance cached property
@@ -261,6 +271,45 @@ class EmailAccount extends Model implements Metable
     }
 
     /**
+     * Get the account form name header option
+     *
+     * @return \Illuminate\Database\Eloquent\Casts\Attribute
+     */
+    public function fromNameHeader(): Attribute
+    {
+        return Attribute::get(fn () => $this->isShared() ?
+            $this->getMeta('from_name_header') :
+            self::DEFAULT_FROM_NAME_HEADER);
+    }
+
+    /**
+     * Get the formatted from name header for the account
+     *
+     * @return \Illuminate\Database\Eloquent\Casts\Attribute
+     */
+    public function formattedFromNameHeader(): Attribute
+    {
+        return Attribute::get(function () {
+            // When running the synchronization command via the console
+            // there is no logged in user
+            // In this case, we will just set as an empty name
+            // as the SMTP client is not used in the synchronization command
+            $name = auth()->check() ? auth()->user()->name : 'Agent';
+
+            // Not work in Microsoft, cannot set custom from name header ATM
+            if ($this->connection_type == ConnectionType::Outlook) {
+                return $name;
+            }
+
+            return str_replace(
+                ['{agent}', '{company}'],
+                [$name, config('app.name')],
+                $this->from_name_header
+            );
+        });
+    }
+
+    /**
      * Check whether the account can send mails
      *
      * @return bool
@@ -357,7 +406,7 @@ class EmailAccount extends Model implements Metable
     public function persistForAccount(array $folder)
     {
         $parent = EmailAccountFolder::updateOrCreate(
-            $this->getUpdateOrCreateAttributes($this, $folder),
+            $this->getUpdateOrCreateAttributes($folder),
             array_merge($folder, [
                 'email_account_id' => $this->id,
                 'syncable' => $folder['syncable'] ?? false,
@@ -374,7 +423,6 @@ class EmailAccount extends Model implements Metable
      *
      * @param  \App\Models\EmailAccountFolder  $parentFolder
      * @param  array  $folder
-     * @param  \App\Models\EmailAccount  $account
      * @return void
      */
     protected function handleChildFolders($parentFolder, $folder)
@@ -403,7 +451,6 @@ class EmailAccount extends Model implements Metable
     /**
      * Get the attributes that should be used for update or create method
      *
-     * @param  \App\Models\EmailAccount  $account
      * @param  array  $folder
      * @return array
      */

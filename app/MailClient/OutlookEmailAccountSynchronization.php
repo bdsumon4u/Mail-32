@@ -29,13 +29,13 @@ class OutlookEmailAccountSynchronization extends EmailAccountIdBasedSynchronizat
     protected $mode = self::FORCE_MODE;
 
     /**
-    * Start account messages synchronization
-    *
-    * @return void
-    */
+     * Start account messages synchronization
+     *
+     * @return void
+     */
     public function syncMessages()
     {
-        $folders  = $this->account->folders->active();
+        $folders = $this->account->folders->active();
         $messages = $this->getInitialDataAndQueueMessagesForDelete($folders);
 
         foreach ($folders as $folder) {
@@ -56,8 +56,7 @@ class OutlookEmailAccountSynchronization extends EmailAccountIdBasedSynchronizat
      * Get all messages and queue deleted messages
      * so we can use the messages from the queue to handle moved messages
      *
-     * @param \Illuminate\Support\Collection $folders
-     *
+     * @param  \Illuminate\Support\Collection  $folders
      * @return array
      */
     protected function getInitialDataAndQueueMessagesForDelete($folders)
@@ -70,7 +69,7 @@ class OutlookEmailAccountSynchronization extends EmailAccountIdBasedSynchronizat
             // @todo - https://github.com/microsoftgraph/msgraph-sdk-php/issues/68
             $messages = $remoteFolder->getDeltaMessages(
                 $folder->getMeta(static::DELTA_META_KEY), // current delta link
-                    $this->account->initial_sync_from->format('Y-m-d H:i:s')
+                $this->account->initial_sync_from->format('Y-m-d H:i:s')
             );
 
             // Store the delta link here as the collection is modified below
@@ -116,9 +115,8 @@ class OutlookEmailAccountSynchronization extends EmailAccountIdBasedSynchronizat
      *
      * Removed messages can exists only when fetching the data via deltaLink
      *
-     * @param \Illuninate\Support\Collection $messages
-     * @param \App\Models\EmailAccountFolder $folder
-     *
+     * @param  \Illuninate\Support\Collection  $messages
+     * @param  \App\Models\EmailAccountFolder  $folder
      * @return \Illuminate\Support\Collection
      */
     protected function checkForRemovedMessages($messages, EmailAccountFolder $folder)
@@ -138,11 +136,10 @@ class OutlookEmailAccountSynchronization extends EmailAccountIdBasedSynchronizat
      * Check whether the sync is initial one
      * The check is performed based on the delta link
      *
-     * @param \App\Models\EmailAccountFolder $folder
-     *
-     * @return boolean
+     * @param  \App\Models\EmailAccountFolder  $folder
+     * @return bool
      */
-    protected function isInitialSync(EmailAccountFolder $folder) : bool
+    protected function isInitialSync(EmailAccountFolder $folder): bool
     {
         return is_null($folder->getMeta(static::DELTA_META_KEY));
     }

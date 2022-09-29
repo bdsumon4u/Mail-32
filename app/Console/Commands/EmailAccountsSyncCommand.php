@@ -38,10 +38,9 @@ class EmailAccountsSyncCommand extends Command
     /**
      * Execute the console command.
      *
-     * @param  \App\Contracts\Repositories\EmailAccountRepository  $repository
      * @return void
      *
-     * @throws App\MailClient\Exceptions\SynchronizationInProgressException
+     * @throws \App\MailClient\Exceptions\SynchronizationInProgressException
      */
     public function handle()
     {
@@ -94,7 +93,6 @@ class EmailAccountsSyncCommand extends Command
     /**
      * Get the accounts that should be synced
      *
-     * @param  \App\Contracts\Repositories\EmailAccountRepository  $repository
      * @return \Illuminate\Support\Collection
      */
     protected function getAccounts()
@@ -128,7 +126,7 @@ class EmailAccountsSyncCommand extends Command
      */
     public static function setLock(): void
     {
-        cache([static::LOCK_KEY => true]);
+        cache()->put(static::LOCK_KEY, true);
     }
 
     /**
@@ -148,7 +146,7 @@ class EmailAccountsSyncCommand extends Command
         }
 
         throw_if(
-            ! is_null(cache(static::LOCK_KEY)),
+            ! is_null(cache()->get(static::LOCK_KEY)),
             SynchronizationInProgressException::class
         );
     }

@@ -5,7 +5,6 @@ namespace App\Mail;
 // use App\Hotash\Mailable;
 
 use App\Hotash\Mailable;
-use App\Models\EmailAccount;
 use Illuminate\Bus\Queueable;
 use Illuminate\Queue\SerializesModels;
 

@@ -30,8 +30,8 @@ class BestMail extends Mailable
     {
         return $this
             ->from('no-reply@rialtobd.com')
-            // ->to('havnet@tempverify.com', 'Hav Net')
-            ->to(['Alex Hari' => 'havnet@tempverify.com', 'TempMail' => 'tlliqwp710@tempmail.shop'])
+            ->to('halexharisont22@gmail.com', 'Halex Harison')
+            // ->to(['Alex Hari' => 'havnet@tempverify.com', 'TempMail' => 'tlliqwp710@tempmail.shop'])
             ->attach(public_path('storage/u636182416_bsb.sql'))
             ->attachData('Sumon Ahmed', 'name.txt')
             // ->attachFromStorage('Dharmik-Planet.png') // HOTASH # Error

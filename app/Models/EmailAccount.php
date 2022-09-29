@@ -101,6 +101,16 @@ class EmailAccount extends Model implements Metable
         return $this->hasOne(OAuthAccount::class, 'id', 'o_auth_account_id'); // HOTASH #
     }
 
+    /**
+     * A model has many temp mails.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<TempMail>
+     */
+    public function tempMails(): HasMany
+    {
+        return $this->hasMany(TempMail::class);
+    }
+
     public function scopeSyncable(Builder $query)
     {
         return $query->where('sync_state', SyncState::ENABLED);

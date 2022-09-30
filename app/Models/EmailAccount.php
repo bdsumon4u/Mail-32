@@ -375,7 +375,7 @@ class EmailAccount extends Model implements Metable
     public function setRequiresAuthentication($value = true)
     {
         if (! is_null($this->oAuthAccount)) {
-            $this->oAuthAccount()->update(
+            $this->oAuthAccount->update(
                 ['requires_auth' => $value],
             );
         }

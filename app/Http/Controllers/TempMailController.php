@@ -32,9 +32,9 @@ class TempMailController extends Controller
             'email' => $email,
             'messages' => EmailAccountMessage::query()
                 ->with(['from', 'to', 'cc', 'bcc', 'replyTo', 'sender'])
-                ->whereHas('to', fn ($query) => $query->where('address', $email))
+                // ->whereHas('to', fn ($query) => $query->where('address', $email))
                 // ->take(15)
-                ->paginate(5),
+                ->simplePaginate(5),
         ]);
     }
 

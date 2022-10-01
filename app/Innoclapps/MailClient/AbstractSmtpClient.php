@@ -21,8 +21,6 @@ use Traversable;
 
 abstract class AbstractSmtpClient implements SmtpInterface
 {
-    use Smtpable;
-
     protected $message;
 
     /**
@@ -33,232 +31,20 @@ abstract class AbstractSmtpClient implements SmtpInterface
     protected $imap;
 
     /**
-     * The "subject" information for the message.
-     *
-     * @var string
-     */
-    protected $subject;
-
-    /**
-     * The message reply/send HTML body
-     *
-     * @var string|null
-     */
-    protected $htmlBody;
-
-    /**
-     * The message reply/send TEXT body
-     *
-     * @var string|null
-     */
-    protected $textBody;
-
-    /**
-     * The "recipients" for the message (to).
-     *
-     * @var array
-     */
-    protected $to = [];
-
-    /**
-     * The "cc" information for the message.
-     *
-     * @var array
-     */
-    protected $cc = [];
-
-    /**
-     * The "bcc" information for the message.
-     *
-     * @var array
-     */
-    protected $bcc = [];
-
-    /**
-     * The "reply-to" information for the message.
-     *
-     * @var array
-     */
-    protected $replyTo = [];
-
-    /**
-     * The attachments for the message.
-     *
-     * @var array
-     */
-    protected $attachments = [];
-
-    /**
-     * The raw attachments for the message.
-     *
-     * @var array
-     */
-    protected $rawAttachments = [];
-
-    const CONTENT_TYPE_HTML = 'text/html';
-
-    const CONTENT_TYPE_TEXT = 'text/plain';
-
-    /**
      * The message custom header
      *
      * @var array
      */
     protected $headers = [
         [
-            'name' => 'X-Concord-App',
+            'name' => 'X-Hotash-App',
             'value' => 'true',
         ],
     ];
 
-    /**
-     * Get the mail content type
-     *
-     * @return string
-     */
-    public function getContentType()
-    {
-        return $this->htmlBody ? static::CONTENT_TYPE_HTML : static::CONTENT_TYPE_TEXT;
-    }
-
-    /**
-     * Check whether the mail is HTML content type
-     *
-     * @return bool
-     */
-    public function isHtmlContentType()
-    {
-        return $this->getContentType() === static::CONTENT_TYPE_HTML;
-    }
-
-    /**
-     * Check whether the mail is Text content type
-     *
-     * @return bool
-     */
-    public function isTextContentType()
-    {
-        return $this->getContentType() === static::CONTENT_TYPE_TEXT;
-    }
-
     public function setMessage($message)
     {
         $this->message = $message;
-        return $this;
-    }
-
-    /**
-     * Set mail message subject
-     *
-     * @param  string  $subject
-     * @return static
-     */
-    public function subject($subject)
-    {
-        $this->subject = $subject;
-
-        return $this;
-    }
-
-    /**
-     * Set mail message HTML body
-     *
-     * @param  string  $body
-     * @return static
-     */
-    public function htmlBody($body)
-    {
-        $this->htmlBody = $body;
-
-        return $this;
-    }
-
-    /**
-     * Set mail message TEXT body
-     *
-     * @param  string  $body
-     * @return static
-     */
-    public function textBody($body)
-    {
-        $this->textBody = $body;
-
-        return $this;
-    }
-
-    /**
-     * Set the mail recipients
-     *
-     * @param  array|string  $address
-     * @param  string|null  $name
-     * @return static
-     */
-    public function to($address, $name = null)
-    {
-        return $this->addAddress($address, $name, 'to');
-    }
-
-    /**
-     * Set the cc address for the mail message.
-     *
-     * @param  array|string  $address
-     * @param  string|null  $name
-     * @return static
-     */
-    public function cc($address, $name = null)
-    {
-        return $this->addAddress($address, $name, 'cc');
-    }
-
-    /**
-     * Set the bcc address for the mail message.
-     *
-     * @param  array|string  $address
-     * @param  string|null  $name
-     * @return static
-     */
-    public function bcc($address, $name = null)
-    {
-        return $this->addAddress($address, $name, 'bcc');
-    }
-
-    /**
-     * Set the replyTo address for the mail message.
-     *
-     * @param  array|string  $address
-     * @param  string|null  $name
-     * @return static
-     */
-    public function replyTo($address, $name = null)
-    {
-        return $this->addAddress($address, $name, 'replyTo');
-    }
-
-    /**
-     * Attach a file to the message.
-     *
-     * @param  string  $file
-     * @param  array  $options
-     * @return static
-     */
-    public function attach($file, array $options = [])
-    {
-        $this->attachments[] = compact('file', 'options');
-
-        return $this;
-    }
-
-    /**
-     * Attach in-memory data as an attachment.
-     *
-     * @param  string  $data
-     * @param  string  $name
-     * @param  array  $options
-     * @return static
-     */
-    public function attachData($data, $name, array $options = [])
-    {
-        $this->rawAttachments[] = compact('data', 'name', 'options');
 
         return $this;
     }

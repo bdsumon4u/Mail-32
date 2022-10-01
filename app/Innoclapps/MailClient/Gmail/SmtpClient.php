@@ -1,14 +1,4 @@
 <?php
-/**
- * Concord CRM - https://www.concordcrm.com
- *
- * @version   1.0.7
- *
- * @link      Releases - https://www.concordcrm.com/releases
- * @link      Terms Of Service - https://www.concordcrm.com/terms
- *
- * @copyright Copyright (c) 2022-2022 KONKORD DIGITAL
- */
 
 namespace App\Innoclapps\MailClient\Gmail;
 
@@ -21,8 +11,8 @@ use App\Innoclapps\OAuth\AccessTokenProvider;
 
 class SmtpClient extends AbstractSmtpClient
 {
-    use MasksMessages,
-        PreparesSymfonyMessage;
+    use MasksMessages;
+    use PreparesSymfonyMessage;
 
     /**
      * Create new SmtpClient instance.
@@ -41,7 +31,7 @@ class SmtpClient extends AbstractSmtpClient
      */
     public function send()
     {
-        $message = Client::message($this->message)->sendMail($this->message);
+        $message = Client::message()->sendMail($this->message);
 
         return $this->maskMessage($message->send()->load(), Message::class);
     }

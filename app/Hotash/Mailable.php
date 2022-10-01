@@ -2,11 +2,15 @@
 
 namespace App\Hotash;
 
+use App\Enums\ConnectionType;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Mail\Mailable as Mail;
+use Illuminate\Mail\Mailer;
 use Illuminate\Support\Facades\Mail as Transport;
 use Illuminate\Support\Facades\View;
 use InvalidArgumentException;
+use Symfony\Component\Mailer\Transport\Dsn;
+use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransportFactory;
 
 class Mailable extends Mail
 {
@@ -22,16 +26,34 @@ class Mailable extends Mail
     {
         // Check if there is no system email account selected to send
         // mail from, in this case, use the Laravel default configuration
-        if (! $this->getSystemEmail()) {
+        if (! $email = $this->getSystemEmail()) {
             return parent::send($mailer);
         }
 
         // We will check if the email account requires authentication, as we
         // are not able to send emails if the account required authentication, in this case
         // we will return to the laravel default mailer behavior
-        if (! $this->getSystemEmail()->canSendMails()) {
+        if (! $email->canSendMails()) {
             return parent::send($mailer);
         }
+
+        if ($email->connection_type === ConnectionType::Imap) {
+            $encryption = $email->getSmtpConfig()->encryption() ?: '';
+            $username = $email->getSmtpConfig()->username() ?? $email->getSmtpConfig()->email();
+
+            $factory = new EsmtpTransportFactory;
+
+            $transport = $factory->create(new Dsn(
+                ! empty($encryption) && $encryption === 'tls' ? (($email->getSmtpConfig()->port() == 465) ? 'smtps' : 'smtp') : '',
+                $email->getSmtpConfig()->host(),
+                $username,
+                $email->getSmtpConfig()->password(),
+                $email->getSmtpConfig()->port()
+            ));
+
+            return parent::send(new Mailer('smtp', app()->get('view'), $transport, app()->get('events')));
+        }
+        dd($email->connection_type);
 
         return parent::send(Transport::mailer('hotash'));
     }

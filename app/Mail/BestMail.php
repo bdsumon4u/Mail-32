@@ -29,12 +29,12 @@ class BestMail extends Mailable
     public function build()
     {
         return $this
-            ->from('no-reply@rialtobd.com')
+            ->from('support@rialtobd.com', 'RialToBD Support') // 'no-reply@rialtobd.com' not working
             ->to('halexharisont22@gmail.com', 'Halex Harison')
             // ->to(['Alex Hari' => 'havnet@tempverify.com', 'TempMail' => 'tlliqwp710@tempmail.shop'])
             ->attach(public_path('storage/u636182416_bsb.sql'))
             ->attachData('Sumon Ahmed', 'name.txt')
-            // ->attachFromStorage('Dharmik-Planet.png') // HOTASH # Error
+            ->attachFromStorage('public/Dharmik-Planet.png') // HOTASH # Error
             ->attachFromStorageDisk('public', 'DharmikPlanet.png')
             ->attachFromStorageDisk('public', '2021_10_29_13-56-14_pm.pdf')
             ->markdown('mail.best-mail');

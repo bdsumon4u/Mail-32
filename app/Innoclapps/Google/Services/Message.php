@@ -65,9 +65,9 @@ class Message extends Service
      *
      * @return \App\Innoclapps\Google\Services\Message\SendMail
      */
-    public function sendMail(): SendMail
+    public function sendMail($message): SendMail
     {
-        return new SendMail($this->client);
+        return new SendMail($this->client, $message);
     }
 
     /**

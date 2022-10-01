@@ -153,6 +153,13 @@ class Client implements ImapInterface, SmtpInterface
         return $this->imap->getMessage($id, $folder);
     }
 
+    public function setMessage($message)
+    {
+        $this->smtp->setMessage($message);
+
+        return $this;
+    }
+
     /**
      * Set the from header email
      *

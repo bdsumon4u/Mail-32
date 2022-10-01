@@ -41,11 +41,7 @@ class SmtpClient extends AbstractSmtpClient
      */
     public function send()
     {
-        /** @var \App\Innoclapps\Google\Services\Message\SendMail */
-        $message = $this->prepareSymfonyMessage(
-            Client::message()->sendMail(),
-            $this->token->getEmail()
-        );
+        $message = Client::message($this->message)->sendMail($this->message);
 
         return $this->maskMessage($message->send()->load(), Message::class);
     }

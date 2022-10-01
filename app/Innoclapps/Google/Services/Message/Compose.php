@@ -37,9 +37,9 @@ class Compose extends Message
      * @param  \Google_Client  $client
      * @return void
      */
-    public function __construct(protected Google_Client $client)
+    public function __construct(protected Google_Client $client, ?Email $email = null)
     {
-        parent::__construct(new Email);
+        parent::__construct($email ?? new Email);
 
         $this->service = new Google_Service_Gmail($client);
     }

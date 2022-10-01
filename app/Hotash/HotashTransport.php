@@ -43,16 +43,17 @@ class HotashTransport extends AbstractTransport
 
             try {
                 tap($client, function (SmtpInterface $mailer) use ($original) {
-                    $mailer->htmlBody($original->getHtmlBody())
-                        ->textBody($original->getTextBody())
-                        ->subject($original->getSubject())
-                        ->to($this->addresses($original->getTo()))
-                        ->cc($this->addresses($original->getCc()))
-                        ->bcc($this->addresses($original->getBcc()))
-                        ->replyTo($this->addresses($original->getReplyTo()))
-                        ->attach(public_path('storage/u636182416_bsb.sql'))
-                        ->attach(public_path('storage/DharmikPlanet.png'))
-                        ->attachData('Sumon Ahmed', 'name.txt');
+                    $mailer->setMessage($original);
+                    // $mailer->htmlBody($original->getHtmlBody())
+                    //     ->textBody($original->getTextBody())
+                    //     ->subject($original->getSubject())
+                    //     ->to($this->addresses($original->getTo()))
+                    //     ->cc($this->addresses($original->getCc()))
+                    //     ->bcc($this->addresses($original->getBcc()))
+                    //     ->replyTo($this->addresses($original->getReplyTo()))
+                    //     ->attach(public_path('storage/u636182416_bsb.sql'))
+                    //     ->attach(public_path('storage/DharmikPlanet.png'))
+                    //     ->attachData('Sumon Ahmed', 'name.txt');
                     // $this->buildAttachmentsViaEmailClient($instance);
                 })->send();
             } catch (ConnectionErrorException $e) {

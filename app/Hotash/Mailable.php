@@ -53,7 +53,6 @@ class Mailable extends Mail
 
             return parent::send(new Mailer('smtp', app()->get('view'), $transport, app()->get('events')));
         }
-        dd($email->connection_type);
 
         return parent::send(Transport::mailer('hotash'));
     }

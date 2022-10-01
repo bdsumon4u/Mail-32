@@ -23,6 +23,8 @@ abstract class AbstractSmtpClient implements SmtpInterface
 {
     use Smtpable;
 
+    protected $message;
+
     /**
      * The SMTP client may need to the IMAP client e.q. to fetch a message(s)
      *
@@ -137,6 +139,12 @@ abstract class AbstractSmtpClient implements SmtpInterface
     public function isTextContentType()
     {
         return $this->getContentType() === static::CONTENT_TYPE_TEXT;
+    }
+
+    public function setMessage($message)
+    {
+        $this->message = $message;
+        return $this;
     }
 
     /**

@@ -359,8 +359,9 @@ class EmailAccount extends Model implements Metable
     {
         if (! $this->client) { // @phpstan-ignore-line
             $this->client = $this->createClient()
-                ->setFromName(config('app.name'))
-                ->setFromAddress($this->email);
+                // ->setFromName(config('app.name'))
+                // ->setFromAddress($this->email)
+;
         }
 
         return $this->client;

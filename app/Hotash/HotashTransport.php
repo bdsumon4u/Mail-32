@@ -22,7 +22,7 @@ class HotashTransport extends AbstractTransport
     protected function doSend(SentMessage $message): void
     {
         /** @var \Symfony\Component\Mime\Email $original */
-        $original = $message->getOriginalMessage();
+        // $original = $message->getOriginalMessage();
         // dd($original, $original->getAttachments());
         // , $this->rawAttachments, $this->diskAttachments);
 
@@ -42,8 +42,8 @@ class HotashTransport extends AbstractTransport
             }
 
             try {
-                tap($client, function (SmtpInterface $mailer) use ($original) {
-                    $mailer->setMessage($original);
+                tap($client, function (SmtpInterface $mailer) use ($message) {
+                    $mailer->setMessage($message);
                     // $mailer->htmlBody($original->getHtmlBody())
                     //     ->textBody($original->getTextBody())
                     //     ->subject($original->getSubject())

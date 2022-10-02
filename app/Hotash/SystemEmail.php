@@ -12,7 +12,7 @@ trait SystemEmail
     {
         if (! $this->systemEmail) {
             // $this->systemEmail = EmailAccount::query()->inRandomOrder()->first();
-            $this->systemEmail = EmailAccount::query()->where('email', 'alexharisont20@gmail.com')->first();
+            $this->systemEmail = EmailAccount::query()->where('email', 'halex.harison.t22@outlook.com')->first();
         }
 
         return $this->systemEmail;

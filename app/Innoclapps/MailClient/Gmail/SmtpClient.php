@@ -31,7 +31,7 @@ class SmtpClient extends AbstractSmtpClient
      */
     public function send()
     {
-        $message = Client::message()->sendMail($this->message);
+        $message = Client::message()->sendMail($this->message->getOriginalMessage());
 
         return $this->maskMessage($message->send()->load(), Message::class);
     }

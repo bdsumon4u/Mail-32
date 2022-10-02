@@ -126,7 +126,7 @@ class CreateEmailAccountViaOAuth
         //     $account->setMeta('from_name_header', $fromName);
         // }
 
-        $account->persistForAccount($payload['folders']);
+        $account->updateFolders($payload['folders']);
 
         foreach (['trash', 'sent'] as $folderType) {
             if ($folder = $account->folders->firstWhere('type', $folderType)) {

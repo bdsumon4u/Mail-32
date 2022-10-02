@@ -14,17 +14,19 @@ namespace App\Innoclapps\MailClient\Outlook;
 
 use App\Innoclapps\Contracts\MailClient\SupportSaveToSentFolderParameter;
 use App\Innoclapps\Facades\Microsoft as Api;
-use App\Innoclapps\Mail\EmbeddedImagesProcessor;
 use App\Innoclapps\MailClient\AbstractSmtpClient;
 use App\Innoclapps\MailClient\FolderIdentifier;
 use App\Innoclapps\Microsoft\Services\Batch\BatchDeleteRequest;
 use App\Innoclapps\Microsoft\Services\Batch\BatchPostRequest;
 use App\Innoclapps\Microsoft\Services\Batch\BatchRequests;
 use App\Innoclapps\OAuth\AccessTokenProvider;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 use Microsoft\Graph\Model\BodyType;
 use Microsoft\Graph\Model\OpenTypeExtension;
 use Symfony\Component\Mime\Email;
+use Symfony\Component\Mime\Part\DataPart;
+use Symfony\Component\Mime\Part\Multipart\RelatedPart;
+use Symfony\Component\Mime\Part\TextPart;
 
 class SmtpClient extends AbstractSmtpClient implements SupportSaveToSentFolderParameter
 {
@@ -185,15 +187,54 @@ class SmtpClient extends AbstractSmtpClient implements SupportSaveToSentFolderPa
      */
     protected function prepareNewMessage($repliesTo = null)
     {
+        // HOTASH #
+        // dump((new Email)->from()->generateMessageId());
+        // dd($this->message);
+
+        $original = $this->message->getOriginalMessage();
+
         $defaults = [
             // We will be generating custom internetMessageId so we can compare it while fething the latest sent message
-            'internetMessageId' => '<'.(new Email)->from($this->getFromAddress())->generateMessageId().'>',
-            'subject' => $this->subject,
-            'body' => [
-                'contentType' => $this->isHtmlContentType() ? BodyType::HTML : BodyType::TEXT,
-                'content' => $this->parseBodyContentWithEmbeddedImages(),
+            'internetMessageId' => '<'.$this->message->getMessageId().'>',
+            'subject' => $original->getSubject(),
+            'body' => $original->getHtmlBody() ? [
+                'contentType' => BodyType::HTML,
+                'content' => $original->getHtmlBody(),
+            ] : [
+                'contentType' => BodyType::TEXT,
+                'content' => $original->getTextBody(),
             ],
         ];
+
+        foreach ($original->getBody()->getParts() as $part) {
+            if ($part instanceof RelatedPart) {
+                foreach ($part->getParts() as $subPart) {
+                    if ($subPart instanceof DataPart) {
+                        // Inline Attachment
+                        $this->inlineAttachments[] = $subPart;
+                    } elseif ($subPart instanceof TextPart) {
+                        // Html Part
+                        $defaults['body'] = [
+                            'contentType' => BodyType::HTML,
+                            'content' => $subPart->getBody(),
+                        ];
+                    } else {
+                        Log::warning('SubPart is not being used.', class_basename($subPart));
+                    }
+                }
+            } elseif ($part instanceof DataPart) {
+                // Attachment
+                $this->attachments[] = $part;
+            } elseif ($part instanceof TextPart) {
+                // Plain Text
+                $defaults['body'] = [
+                    'contentType' => BodyType::TEXT,
+                    'content' => $part->getBody(),
+                ];
+            } else {
+                Log::warning('Part is not being used.', class_basename($part));
+            }
+        }
 
         if ($repliesTo) {
             $defaults['conversationId'] = $repliesTo->getConversationId();
@@ -217,18 +258,18 @@ class SmtpClient extends AbstractSmtpClient implements SupportSaveToSentFolderPa
 
         // Set reply to headers only if exists
         // As Outlook is not accepting the same reply-to header as the from/sender
-        if (count($this->replyTo) > 0) {
+        if ($replyTo = $this->message->getOriginalMessage()->getHeaders()->get('reply-to')?->getAddresses() ?? []) {
             $mailBody['replyTo'] = [];
 
-            foreach ($this->replyTo as $recipient) {
-                $mailBody['replyTo'][] = $this->createAddress($recipient['address'], $recipient['name']);
+            foreach ($replyTo as $address) {
+                $mailBody['replyTo'][] = $this->createAddress($address->getAddress(), $address->getName());
             }
         }
 
         // Microsoft requires if sending the from option header both address and name to be configured, if the FROM header
         // is not sent with the request, the default from the Microsoft account will be used
 
-        if ($this->getFromName() && $this->getFromAddress()) {
+        foreach ($this->message->getOriginalMessage()->getHeaders()->get('from')?->getAddresses() ?? [] as $address) {
             /**
              * The mailbox owner and sender of the message.
              * The value must correspond to the actual mailbox used.
@@ -237,39 +278,10 @@ class SmtpClient extends AbstractSmtpClient implements SupportSaveToSentFolderPa
              *
              * NOTE, this does not work, not sure but Microsoft is not changing the header for some reason
              */
-            $mailBody['from'] = $this->createAddress($this->getFromAddress(), $this->getFromName());
+            $mailBody['from'] = $this->createAddress($address->getAddress(), $address->getName());
         }
 
         return $mailBody;
-    }
-
-    /**
-     * Parse the body contents with embedded images
-     *
-     * @return string
-     */
-    protected function parseBodyContentWithEmbeddedImages()
-    {
-        // Outlook supports only providing one body type
-        // In this case, if no HTML is set, we will pass the text body
-        return tap((new EmbeddedImagesProcessor)(
-            $this->isHtmlContentType() ? $this->htmlBody : $this->textBody,
-            function ($data, $name, $contentType) {
-                $contentId = Str::random(10);
-
-                $this->attachData($data, $name, [
-                    'mime' => $contentType,
-                    'contentId' => $contentId,
-                    'isInline' => true,
-                ]);
-
-                // For quote replacer
-                return "cid:$contentId";
-            }
-        ), function () {
-            /** @phpstan-ignore-next-line */
-            $this->buildAttachments = null; // HOTASH #
-        });
     }
 
     /**
@@ -385,8 +397,8 @@ class SmtpClient extends AbstractSmtpClient implements SupportSaveToSentFolderPa
         foreach (['to', 'cc', 'bcc'] as $type) {
             $recipients[$type.'Recipients'] = [];
 
-            foreach ($this->{$type} as $address) {
-                $recipients[$type.'Recipients'][] = $this->createAddress($address['address'], $address['name']);
+            foreach ($this->message->getOriginalMessage()->getHeaders()->get($type)?->getAddresses() ?? [] as $address) {
+                $recipients[$type.'Recipients'][] = $this->createAddress($address->getAddress(), $address->getName());
             }
         }
 

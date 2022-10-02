@@ -23,8 +23,6 @@ class MailController extends Controller
     {
         $query = EmailAccount::query();
         if ($request->query('viaOAuth')) {
-            dd($query->orderBy('id', 'desc')->first());
-
             return redirect()->action([static::class, 'edit'], $query->orderBy('id', 'desc')->first());
         }
 
@@ -65,6 +63,8 @@ class MailController extends Controller
 
             return back()->with('imapFolders', (new EmailAccountConnectionTestController)($request)->getData(true));
         }
+
+        dd($account);
 
         return EmailAccountResource::make($account);
     }

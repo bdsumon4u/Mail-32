@@ -28,6 +28,10 @@ trait InteractsWithAttachments
      */
     protected $maxRequestFileSize = 3145728; // 3 MB = 3145728 Bytes (in binary)
 
+    protected $attachments = [];
+
+    protected $inlineAttachments = [];
+
     /**
      * Attachments build cache
      *
@@ -48,12 +52,37 @@ trait InteractsWithAttachments
 
         $attachments = [];
 
-        foreach (['attachments', 'rawAttachments'] as $type) {
-            foreach ($this->{$type} as $attachment) {
-                $method = $type === 'attachments' ? 'prepAttachment' : 'prepAttachmentData';
-                $attachments[] = $this->{$method}($attachment, $attachment['options']);
-            }
+        foreach ($this->attachments as $attachment) {
+            $data = [
+                '@odata.type' => '#microsoft.graph.fileAttachment',
+                'contentBytes' => base64_encode($attachment->getBody()), // HOTASH # IsEncoded Already?
+                'name' => $attachment->getName(),
+                'size' => mb_strlen($attachment->getBody(), '8bit'),
+                'contentType' => $attachment->getMediaType().'/'.$attachment->getMediaSubtype(),
+            ];
+            $attachments[] = $data;
         }
+
+        foreach ($this->inlineAttachments as $attachment) {
+            dd($attachment);
+            $data = [
+                '@odata.type' => '#microsoft.graph.fileAttachment',
+                'contentBytes' => base64_encode($attachment->getBody()), // HOTASH # IsEncoded Already?
+                'name' => $attachment->getName(),
+                'size' => mb_strlen($attachment->getBody(), '8bit'),
+                'contentType' => $attachment->getMediaType().'/'.$attachment->getMediaSubtype(),
+                'contentId' => $attachment->getContentId(),
+                'isInline' => true,
+            ];
+            $attachments[] = $data;
+        }
+
+        // foreach (['attachments', 'rawAttachments'] as $type) {
+        //     foreach ($this->{$type} as $attachment) {
+        //         $method = $type === 'attachments' ? 'prepAttachment' : 'prepAttachmentData';
+        //         $attachments[] = $this->{$method}($attachment, $attachment['options']);
+        //     }
+        // }
 
         return $this->attachmentsBuild = $attachments;
     }

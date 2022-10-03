@@ -16,7 +16,6 @@ use App\Innoclapps\Facades\Microsoft as Api;
 use App\Innoclapps\Microsoft\Services\Batch\BatchPostRequest;
 use App\Innoclapps\Microsoft\Services\Batch\BatchRequests;
 use GuzzleHttp\Client;
-use Illuminate\Support\Str;
 use Microsoft\Graph\Model\UploadSession;
 
 trait InteractsWithAttachments
@@ -27,10 +26,6 @@ trait InteractsWithAttachments
      * @var int
      */
     protected $maxRequestFileSize = 3145728; // 3 MB = 3145728 Bytes (in binary)
-
-    protected $attachments = [];
-
-    protected $inlineAttachments = [];
 
     /**
      * Attachments build cache
@@ -52,37 +47,25 @@ trait InteractsWithAttachments
 
         $attachments = [];
 
-        foreach ($this->attachments as $attachment) {
+        foreach ($this->message->getOriginalMessage()->getAttachments() as $attachment) {
+            $headers = $attachment->getPreparedHeaders();
+
             $data = [
                 '@odata.type' => '#microsoft.graph.fileAttachment',
                 'contentBytes' => base64_encode($attachment->getBody()), // HOTASH # IsEncoded Already?
                 'name' => $attachment->getName(),
                 'size' => mb_strlen($attachment->getBody(), '8bit'),
-                'contentType' => $attachment->getMediaType().'/'.$attachment->getMediaSubtype(),
+                'contentType' => $headers->get('content-type')->getValue(),
             ];
+
+            $disposition = $headers->get('content-disposition');
+            if ($disposition->getValue() === 'inline') {
+                $data['contentId'] = $disposition->getParameter('name');
+                $data['isInline'] = true;
+            }
+
             $attachments[] = $data;
         }
-
-        foreach ($this->inlineAttachments as $attachment) {
-            dd($attachment);
-            $data = [
-                '@odata.type' => '#microsoft.graph.fileAttachment',
-                'contentBytes' => base64_encode($attachment->getBody()), // HOTASH # IsEncoded Already?
-                'name' => $attachment->getName(),
-                'size' => mb_strlen($attachment->getBody(), '8bit'),
-                'contentType' => $attachment->getMediaType().'/'.$attachment->getMediaSubtype(),
-                'contentId' => $attachment->getContentId(),
-                'isInline' => true,
-            ];
-            $attachments[] = $data;
-        }
-
-        // foreach (['attachments', 'rawAttachments'] as $type) {
-        //     foreach ($this->{$type} as $attachment) {
-        //         $method = $type === 'attachments' ? 'prepAttachment' : 'prepAttachmentData';
-        //         $attachments[] = $this->{$method}($attachment, $attachment['options']);
-        //     }
-        // }
 
         return $this->attachmentsBuild = $attachments;
     }
@@ -114,89 +97,6 @@ trait InteractsWithAttachments
         $groups = $this->createAttachmentsUploadGroups();
         $this->attachLargeFiles($groups['session'] ?? [], $messageId);
         $this->attachFiles($groups['attachments'] ?? [], $messageId);
-    }
-
-    /**
-     * Prepare the given attachment.
-     *
-     * @param  array  $attachment
-     * @param  array  $options
-     * @return array
-     */
-    protected function prepAttachment($attachment, $options = [])
-    {
-        $contents = file_get_contents($attachment['file']);
-
-        $fileAttachment = [
-            '@odata.type' => '#microsoft.graph.fileAttachment',
-            'contentBytes' => base64_encode($contents),
-            'name' => basename($attachment['file']),
-            'size' => mb_strlen($contents, '8bit'),
-        ];
-
-        return $this->prepAttachmentOptions($fileAttachment, $options);
-    }
-
-    /**
-     * Prepare the given data attachment.
-     *
-     * @param  array  $attachment
-     * @param  array  $options
-     * @return array
-     */
-    protected function prepAttachmentData($attachment, $options = [])
-    {
-        /** @phpstan-ignore-next-line */
-        $raw = Str::isBase64Encoded($attachment['data']) ? base64_decode($attachment['data']) : $attachment['data'];
-
-        $fileAttachment = [
-            '@odata.type' => '#microsoft.graph.fileAttachment',
-            /** @phpstan-ignore-next-line */
-            'contentBytes' => Str::isBase64Encoded($attachment['data'])
-                    ? $attachment['data']
-                    : base64_encode($attachment['data']),
-            'name' => $attachment['name'],
-            'size' => mb_strlen($raw, '8bit'),
-        ];
-
-        return $this->prepAttachmentOptions($fileAttachment, $options);
-    }
-
-    /**
-     * Prepare the attachment options
-     *
-     * @param  array  $attachment
-     * @param  array  $options
-     * @return array
-     */
-    protected function prepAttachmentOptions($attachment, $options = [])
-    {
-        // First we will check for a MIME type on the message, which instructs the
-        // mail client on what type of attachment the file is so that it may be
-        // downloaded correctly by the user. The MIME option is not required.
-        if (isset($options['mime'])) {
-            $attachment['contentType'] = $options['mime'];
-        }
-
-        // Check if attachment has content ID
-        // In most cases this will be used for embedded images
-        if (isset($options['contentId'])) {
-            $attachment['contentId'] = $options['contentId'];
-
-            // If content ID is set, we can pass the isInline too
-            if (isset($options['isInline'])) {
-                $attachment['isInline'] = $options['isInline'];
-            }
-        }
-
-        // If an alternative name was given as an option, we will set that on this
-        // attachment so that it will be downloaded with the desired names from
-        // the developer, otherwise the default file names will get assigned.
-        if (isset($options['as'])) {
-            $attachment['name'] = $options['as'];
-        }
-
-        return $attachment;
     }
 
     /**

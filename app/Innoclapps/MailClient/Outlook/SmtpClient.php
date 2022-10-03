@@ -20,13 +20,9 @@ use App\Innoclapps\Microsoft\Services\Batch\BatchDeleteRequest;
 use App\Innoclapps\Microsoft\Services\Batch\BatchPostRequest;
 use App\Innoclapps\Microsoft\Services\Batch\BatchRequests;
 use App\Innoclapps\OAuth\AccessTokenProvider;
-use Illuminate\Support\Facades\Log;
 use Microsoft\Graph\Model\BodyType;
 use Microsoft\Graph\Model\OpenTypeExtension;
 use Symfony\Component\Mime\Email;
-use Symfony\Component\Mime\Part\DataPart;
-use Symfony\Component\Mime\Part\Multipart\RelatedPart;
-use Symfony\Component\Mime\Part\TextPart;
 
 class SmtpClient extends AbstractSmtpClient implements SupportSaveToSentFolderParameter
 {
@@ -205,36 +201,6 @@ class SmtpClient extends AbstractSmtpClient implements SupportSaveToSentFolderPa
                 'content' => $original->getTextBody(),
             ],
         ];
-
-        foreach ($original->getBody()->getParts() as $part) {
-            if ($part instanceof RelatedPart) {
-                foreach ($part->getParts() as $subPart) {
-                    if ($subPart instanceof DataPart) {
-                        // Inline Attachment
-                        $this->inlineAttachments[] = $subPart;
-                    } elseif ($subPart instanceof TextPart) {
-                        // Html Part
-                        $defaults['body'] = [
-                            'contentType' => BodyType::HTML,
-                            'content' => $subPart->getBody(),
-                        ];
-                    } else {
-                        Log::warning('SubPart is not being used.', class_basename($subPart));
-                    }
-                }
-            } elseif ($part instanceof DataPart) {
-                // Attachment
-                $this->attachments[] = $part;
-            } elseif ($part instanceof TextPart) {
-                // Plain Text
-                $defaults['body'] = [
-                    'contentType' => BodyType::TEXT,
-                    'content' => $part->getBody(),
-                ];
-            } else {
-                Log::warning('Part is not being used.', class_basename($part));
-            }
-        }
 
         if ($repliesTo) {
             $defaults['conversationId'] = $repliesTo->getConversationId();

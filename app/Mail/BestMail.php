@@ -40,7 +40,7 @@ class BestMail extends Mailable
         // If you try, it will throw exception.
 
         return $this
-            ->from('support@rialtobd.com') // 'no-reply@rialtobd.com' not working
+            ->from('halex.harison.t22@outlook.com') // 'no-reply@rialtobd.com' not working
             ->to('halexharisont22@gmail.com', 'Halex Harison')
             ->bcc(['Alex Hari' => 'havnet@tempverify.com', 'TempMail' => 'cojekix887@migonom.com'])
             ->bcc(['Brad Riordan' => 'bradlriordan@gmail.com'])

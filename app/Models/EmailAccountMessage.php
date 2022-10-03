@@ -70,6 +70,8 @@ class EmailAccountMessage extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
         'date' => 'datetime',
         'is_draft' => 'boolean',
         'is_read' => 'boolean',
@@ -393,7 +395,7 @@ class EmailAccountMessage extends Model
      * NOTE: This functions does not syncs attachments
      *
      * @param  \App\Innoclapps\MailClient\AbstractMessage  $message
-     * @param  int  $id The account ID
+     * @param  int  $id The message ID
      * @return \App\Models\EmailAccountMessage
      */
     public function updateForAccount($message, $id)
@@ -695,34 +697,6 @@ class EmailAccountMessage extends Model
         )->massUpdate(['is_read' => false]);
 
         $this->resetScope();
-    }
-
-    /**
-     * Mark messages as read by remote ids
-     *
-     * @param  int  $folderId The folder id to not prevent conflicts in case of same remote uid's
-     * @param  array  $remoteIds
-     * @return bool
-     */
-    public function markAsReadByRemoteIds($folderId, array $remoteIds)
-    {
-        $this->newQuery()->whereHas('folders', function ($subQuery) use ($folderId) {
-            return $subQuery->where('folder_id', $folderId);
-        })->whereIn('remote_id', $remoteIds)->update(['is_read' => 1]);
-    }
-
-    /**
-     * Mark messages as unread by remote ids
-     *
-     * @param  int  $folderId The folder id to not prevent conflicts in case of same remote uid's
-     * @param  array  $remoteIds
-     * @return bool
-     */
-    public function markAsUnreadByRemoteIds($folderId, array $remoteIds)
-    {
-        $this->newQuery()->whereHas('folders', function ($subQuery) use ($folderId) {
-            return $subQuery->where('folder_id', $folderId);
-        })->whereIn('remote_id', $remoteIds)->update(['is_read' => 0]);
     }
 
     /** Persistency Start */

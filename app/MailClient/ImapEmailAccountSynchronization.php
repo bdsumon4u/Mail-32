@@ -14,6 +14,7 @@ namespace App\MailClient;
 
 use App\Enums\SyncState;
 use App\MailClient\Exceptions\SyncFolderTimeoutException;
+use App\Models\EmailAccountFolder;
 use Ddeboer\Imap\Exception\UnexpectedEncodingException;
 use Ddeboer\Imap\Exception\UnsupportedCharsetException;
 use Illuminate\Support\Str;
@@ -262,16 +263,20 @@ class ImapEmailAccountSynchronization extends EmailAccountSynchronization
      */
     protected function updateReadAndUnreadMessages($remoteFolder, $folderId)
     {
+        if (! $folder = EmailAccountFolder::find($folderId)) {
+            return;
+        }
+
         $remoteFolder->getSeenIds($this->account->initial_sync_from->format('Y-m-d H:i:s'))
             ->chunk(500)
-            ->each(function ($ids) use ($folderId) {
-                $this->messages->markAsReadByRemoteIds($folderId, $ids->all());
+            ->each(function ($ids) use ($folder) {
+                $folder->messages()->whereIn('remote_id', $ids->all())->update(['is_read' => true]);
             });
 
         $remoteFolder->getUnseenIds($this->account->initial_sync_from->format('Y-m-d H:i:s'))
             ->chunk(500)
-            ->each(function ($ids) use ($folderId) {
-                $this->messages->markAsUnreadByRemoteIds($folderId, $ids->all());
+            ->each(function ($ids) use ($folder) {
+                $folder->messages()->whereIn('remote_id', $ids->all())->update(['is_read' => false]);
             });
     }
 

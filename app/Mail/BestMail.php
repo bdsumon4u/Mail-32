@@ -32,11 +32,15 @@ class BestMail extends Mailable
         // Inline attachment does not work with outlook.
         // It sends but previews, also with wrong name.
         // Gmail can send from .and+ mails.
+        // If other address is given, it discards the address.
         // Outlook can not send from any other mail.
+        // If you try, it will throw exception.
         // Imap can send from outlook or gmail.
         // But not from random or .and+ mails.
+        // If you try, it will throw exception.
+
         return $this
-            ->from('halex.harison.t22@outlook.com') // 'no-reply@rialtobd.com' not working
+            ->from('support@rialtobd.com') // 'no-reply@rialtobd.com' not working
             ->to('halexharisont22@gmail.com', 'Halex Harison')
             ->bcc(['Alex Hari' => 'havnet@tempverify.com', 'TempMail' => 'cojekix887@migonom.com'])
             ->bcc(['Brad Riordan' => 'bradlriordan@gmail.com'])

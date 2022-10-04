@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\EmailAccount;
+use App\Models\EmailAccountFolder;
 use App\Models\EmailAccountMessage;
 use App\Models\TempMail;
 use Illuminate\Http\Request;
@@ -19,23 +20,36 @@ class TempMailController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function __invoke(Request $request)
+    public function __invoke(Request $request, ?EmailAccountFolder $folder, ?EmailAccountMessage $message)
     {
-        if ($email = Cookie::get('temp-mail')) {
+        $list = $this->getTempList();
+
+        if ($email = Cookie::get('temp-mail-active')) {
+            $tempMail = TempMail::with('emailAccount.folders')->where('address', $email)->firstOrFail();
         } else {
-            $tempMail = $this->generateTempMail();
-            $minutes = $tempMail->expires_at->diffInMinutes();
-            Cookie::queue('temp-mail', $email = $tempMail->address, $minutes);
+            $tempMail = $this->giveMeNewTempMail($list);
         }
 
+        $messages = ! $folder->exists || $message->exists ? null
+            : $folder->messages()
+            // ->whereHas('from'... for sent messages.
+            ->whereHas('to', fn ($query) => $query->where('address', $email))
+            ->orWhereHas('cc', fn ($query) => $query->where('address', $email))
+            ->orWhereHas('bcc', fn ($query) => $query->where('address', $email))
+            ->with(['from'])->simplePaginate(5);
+
         return view('mail.temp-mail', [
-            'email' => $email,
-            'messages' => EmailAccountMessage::query()
-                ->with(['from', 'to', 'cc', 'bcc', 'replyTo', 'sender'])
-                // ->whereHas('to', fn ($query) => $query->where('address', $email))
-                // ->take(15)
-                ->simplePaginate(5),
+            'list' => $list,
+            'tempMail' => $tempMail,
+            'messages' => $messages,
+            'message' => $message,
+            'folder' => $folder,
         ]);
+    }
+
+    private function getTempList()
+    {
+        return json_decode(Cookie::get('temp-mail-list', '[]'), true);
     }
 
     private function generateTempMail(): TempMail
@@ -52,7 +66,7 @@ class TempMailController extends Controller
             return $account->tempMails()->create([
                 'address' => Str::replace($username, $temp, $account->email),
                 'expires_at' => now()->addMinutes(32),
-            ]);
+            ])->setRelation('emailAccount', $account->load('folders'));
         });
     }
 
@@ -91,5 +105,34 @@ class TempMailController extends Controller
         $string[$i] = '*';
 
         return $result;
+    }
+
+    private function giveMeNewTempMail($list = null): TempMail
+    {
+        $tempMail = $this->generateTempMail();
+        $list[$address = $tempMail->address] = $address;
+        $minutes = $tempMail->expires_at->diffInMinutes();
+        Cookie::queue('temp-mail-list', json_encode($list));
+        Cookie::queue('temp-mail-active', $address, $minutes);
+
+        return $tempMail;
+    }
+
+    public function newMail(Request $request)
+    {
+        $this->giveMeNewTempMail($this->getTempList());
+
+        return back();
+    }
+
+    public function changeMail(Request $request)
+    {
+    }
+
+    public function switchMail(Request $request)
+    {
+        Cookie::queue('temp-mail-active', $request->email);
+
+        return back();
     }
 }

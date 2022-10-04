@@ -339,7 +339,7 @@ class EmailAccountMessage extends Model
 
         $this->persistAddresses($data, $dbMessage);
         $this->persistHeaders($message, $dbMessage);
-        // $this->handleAttachments($dbMessage, $message); // HOTASH #
+        $this->handleAttachments($dbMessage, $message); // HOTASH #
 
         $dbMessage->folders()->sync(
             $this->determineMessageDatabaseFolders($message, $dbMessage)
@@ -387,6 +387,133 @@ class EmailAccountMessage extends Model
         }
 
         return $folders->findWhereIdentifierIn($imapMessage->getFolders())->pluck('id')->all();
+    }
+
+    /**
+     * Save the message attachments
+     *
+     * @param  \App\Models\EmailAccountMessage  $message
+     * @param  \App\Innoclapps\Contracts\MailClient\MessageInterface  $imapMessage
+     * @return array
+     */
+    protected function handleAttachments($dbMessage, $imapMessage)
+    {
+        // Store embedded attachments with embedded-attachments tag
+        // We will cast as embedded/inline attachments only the attachments which
+        // exists in the message body with src="cid_CONTENT_ID"
+        $embeddedAttachments = $this->replaceBodyInlineAttachments($dbMessage, $imapMessage);
+
+        // Remove the embedded attachments as they are stored with different tag
+        $attachments = $imapMessage->getAttachments()
+            ->reject(function ($attachment, $key) use ($embeddedAttachments) {
+                return in_array($key, $embeddedAttachments);
+            })->values();
+
+        // Store non-embedded attachments
+        return $this->storeAttachments($attachments, $dbMessage, 'attachments');
+    }
+
+    /**
+     * Replace the message body inline attachments with the actual media links
+     *
+     * @param \App\Models\EmailAccountMessage
+     * @param  \App\Innoclapps\Contracts\MailClient\MessageInterface  $imapMessage
+     * @return array
+     */
+    protected function replaceBodyInlineAttachments($dbMessage, $imapMessage)
+    {
+        $embeddedAttachmentsKeys = [];
+
+        // We will provide a closure to the getPreviewBody method
+        // to provide a custom content for the replace
+        $replaceCallback = function ($file) use ($dbMessage, $imapMessage, &$embeddedAttachmentsKeys) {
+            foreach ($imapMessage->getAttachments() as $key => $attachment) {
+                if ($attachment->getContentId() === $file->getContentId()) {
+                    // Check if the attachment with this content-id is already stored
+                    // if yes, we will return the same media preview url
+                    // Useful e.q. on update when the message already exists and
+                    // we are trying to update it
+                    $media = $dbMessage->inlineAttachments->first(function ($inlineMedia) use ($file) {
+                        return $inlineMedia->getMeta('content-id') === $file->getContentId();
+                    });
+
+                    // When no media with this content-id found, we will create
+                    // the media as embedded attachment and will set the meta content-id
+                    if (is_null($media) &&
+                    $media = $this->storeAttachments($attachment, $dbMessage, 'embedded-attachments')[0] ?? null
+                    ) {
+                        $media->setMeta('content-id', $file->getContentId());
+                    }
+
+                    if ($media) {
+                        $embeddedAttachmentsKeys[] = $key;
+
+                        return $media->getPreviewUri();
+                    }
+                }
+            }
+        };
+
+        $this->update(['html_body' => $imapMessage->getPreviewBody($replaceCallback)], $dbMessage->id);
+
+        return $embeddedAttachmentsKeys;
+    }
+
+    /**
+     * Store message attachments
+     *
+     * @param  \Iluminate\Support\Collection|\App\Innoclapps\Contracts\MailClient\AttachmentInterface  $attachments
+     * @param  \App\Models\EmailAccountMessage  $message
+     * @param  string  $tag
+     * @return array
+     */
+    protected function storeAttachments($attachments, $message, $tag)
+    {
+        if ($attachments instanceof AttachmentInterface) {
+            $attachments = [$attachments];
+        }
+
+        $storedMedias = [];
+        $allowedExtensions = config('mediable.allowed_extensions');
+
+        foreach ($attachments as  $attachment) {
+            $tmpFile = tmpfile();
+            fwrite(
+                $tmpFile,
+                ContentDecoder::decode($attachment->getContent(), $attachment->getEncoding())
+            );
+
+            try {
+                $storedMedias[] = $media = MediaUploader::fromSource($tmpFile)
+                    ->toDirectory($message->getMediaDirectory())
+                    ->useFilename($filename = pathinfo($attachment->getFileName(), PATHINFO_FILENAME))
+                    // Allow any extension
+                    ->setAllowedExtensions(array_unique(
+                        array_merge($allowedExtensions, [pathinfo($attachment->getFileName(), PATHINFO_EXTENSION)])
+                    ))
+                    ->upload();
+                $message->attachMedia($media, [$tag]);
+            } catch (MediaUploadException $e) {
+                Log::debug(
+                    sprintf(
+                        'Failed to store mail message [ID: %s] attachment, filename: %s, exception message: %s',
+                        $message->getKey(),
+                        $filename,
+                        $e->getMessage()
+                    ),
+                );
+
+                continue;
+            } finally {
+                // If the media package did not closed the file, close it
+                // As per the tests, it looks like the package closes the tmpfile
+                if (is_resource($tmpFile)) {
+                    fclose($tmpFile);
+                }
+            }
+        }
+
+        return $storedMedias;
     }
 
     /**

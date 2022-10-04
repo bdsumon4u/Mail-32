@@ -34,7 +34,11 @@ Route::middleware('splade')->group(function () {
 
     require __DIR__.'/auth.php';
 
-    Route::get('/temp-mail', TempMailController::class)->name('temp-mail');
+    Route::get('/temp-mail/new', [TempMailController::class, 'newMail'])->name('temp-mail.new');
+    Route::get('/temp-mail/change', [TempMailController::class, 'changeMail'])->name('temp-mail.change');
+    Route::get('/temp-mail/switch', [TempMailController::class, 'switchMail'])->name('temp-mail.switch');
+
+    Route::get('/temp-mail/{folder?}/{message?}', TempMailController::class)->name('temp-mail');
 
     Route::post('test-connection', EmailAccountConnectionTestController::class)->name('connection.test');
 

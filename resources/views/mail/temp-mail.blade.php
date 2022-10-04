@@ -13,17 +13,17 @@
             <div class="hidden font-bold text-gray-800 bg-gray-200 xl:grid w-60 h-60 place-content-center">Advertisement</div>
             <div class="flex-1 p-2 border-2 border-gray-500 border-dashed md:p-5">
                 <div class="text-xl italic font-bold text-center">Your Temporary Email Address</div>
-                <x-splade-form action="/" default="{email: 'alexharisont20@gmail.com'}" class="mt-4">
+                <x-splade-form action="/" default="{email: '{{ $tempMail->address }}'}" class="mt-4">
                     <div class="flex flex-wrap justify-center gap-x-3 gap-y-2">
-                        <x-splade-select name="email" :options="['alexharisont20@gmail.com' => 'alexharisont20@gmail.com', 'bradlriordan@gmail.com' => 'bradlriordan@gmail.com', 'support@rialtobd.com' => 'support@rialtobd.com']" class="text-gray-600 rounded-md w-60 sm:w-72 md:w-80 lg:w-96" choices="{searchEnabled: false}" />
+                        <x-splade-select @change="switchMail" name="email" :options="$list" class="text-gray-600 rounded-md w-60 sm:w-72 md:w-80 lg:w-96" choices="{searchEnabled: false}" />
                         <div class="flex justify-center gap-x-3">
                             <button class="px-2 py-2 bg-gray-500 rounded-md">QR</button>
                             <button class="px-2 py-2 bg-gray-500 rounded-md">Copy</button>
                         </div>
                     </div>
                     <div class="flex flex-wrap justify-center gap-3 mt-2">
-                        <button class="px-2 py-2 bg-gray-500 rounded-md">New</button>
-                        <button class="px-2 py-2 bg-gray-500 rounded-md">Change</button>
+                        <Link href="{{ route('temp-mail.new') }}" class="px-2 py-2 bg-gray-500 rounded-md">New</Link>
+                        <Link href="{{ route('temp-mail.change') }}" class="px-2 py-2 bg-gray-500 rounded-md">Change</Link>
                         <button class="px-2 py-2 bg-gray-500 rounded-md">Refresh</button>
                         <button class="px-2 py-2 bg-gray-500 rounded-md">Delete</button>
                     </div>
@@ -57,28 +57,13 @@
                 </header>
                 <body>
                     <ul>
-                        @foreach ($messages as $message)
+                        @foreach ($tempMail->emailAccount->folders as $_folder)
                         <li class="p-2 my-2 bg-gray-200 rounded-md shadow-sm cursor-pointer group hover:bg-gray-300">
-                            <p class="font-semibold group-hover:underline">{{ $message->subject }} {{ $message->subject }}</p>
-                            <div class="my-2 ml-2 truncate">
-                                @if ($name = $message->from->name)
-                                <p class="text-gray-500">{{ $name }}</p>
-                                @endif
-                                <p class="text-gray-500">{{ $message->from->address }}</p>
-                            </div>
-                            <div>
-                                <div class="my-2">{{ $message->preview_text }}</div>
-                                <div class="my-2">{{ $message->visible_text }}</div>
-                                <div class="my-2">{{ $message->hidden_text }}</div>
-                            </div>
-                            <p class="text-xs italic font-semibold text-gray-500">{{ $message->created_at->format('d-M-Y H:i A') }}</p>
+                            <Link href="{{ route('temp-mail', ['folder' => $_folder]) }}" class="font-semibold group-hover:underline">{{ $_folder->display_name }}</Link>
                         </li>
                         @endforeach
                     </ul>
                 </body>
-                <footer>
-                    {{ $messages->links() }}
-                </footer>
             </div>
             <div class="flex-1 max-w-3xl">
                 <div class="flex flex-col h-full">
@@ -89,13 +74,27 @@
                         <div>View</div>
                     </header>
                     <body class="flex-1 p-2 mt-3 min-h-[30rem] h-auto bg-white rounded-md shadow-sm">
-                        <ul>
-                            @foreach ($messages as $message)
-                            <li>
-                                {{ $message->subject }}
-                            </li>
-                            @endforeach
-                        </ul>
+                        @if ($message->exists)
+                        <iframe class="w-full h-full" srcdoc="{{ $message->html_body ?? $message->text_body }}" frameborder="0"></iframe>
+                        @elseif ($messages?->isNotEmpty())
+                            <ul>
+                                @foreach ($messages as $message)
+                                <li class="p-2 my-2 bg-gray-200 rounded-md shadow-sm cursor-pointer group hover:bg-gray-300">
+                                    <p class="font-semibold group-hover:underline">{{ $message->subject }} {{ $message->subject }}</p>
+                                    <div class="my-2 ml-2 truncate">
+                                        @if ($name = $message->from->name)
+                                        <p class="text-gray-500">{{ $name }}</p>
+                                        @endif
+                                        <p class="text-gray-500">{{ $message->from->address }}</p>
+                                    </div>
+                                    <p class="text-xs italic font-semibold text-gray-500">{{ $message->created_at->format('d-M-Y H:i A') }}</p>
+                                </li>
+                                @endforeach
+                            </ul>
+                            {{ $messages?->links() }}
+                        @else
+                        <p class="text-red-500">No messages in {{ $folder->display_name }} folder.</p>
+                        @endif
                     </body>
                     <div class="grid w-auto h-32 max-w-3xl mt-3 font-bold text-gray-800 bg-gray-200 place-content-center">Advertisement</div>
                 </div>
